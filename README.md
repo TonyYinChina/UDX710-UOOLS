@@ -1,4 +1,4 @@
-# 5G MiFi Dashboard
+# 5G MiFi Dashboard(UDX710)
 
 [🇨🇳 中文文档](README_CN.md)
 
@@ -17,6 +17,13 @@ This project provides two versions for different devices:
 
 > 💡 **Switch Version**: `git checkout SZ50` for SZ50 version, `git checkout main` for generic version
 
+### 📥 Download
+
+| Version | Download |
+|:---:|:---:|
+| **UDX710 Generic** | [📥 Download](https://github.com/LeoChen-CoreMind/UDX710-UOOLS/releases/latest) |
+| **SZ50 Dedicated** | [📥 Download](https://github.com/LeoChen-CoreMind/UDX710-UOOLS/releases/latest) |
+
 ### SZ50 Dedicated Version Extra Features
 - 🔆 **LED Control** - Customize LED indicator status
 - 🔘 **Key Listener** - Physical button event response
@@ -33,7 +40,13 @@ This project provides two versions for different devices:
 
 Lightweight, efficient, and perfect for resource-constrained embedded devices!
 
-## Features
+## 📸 Screenshots
+
+| Dashboard | Network Info | WiFi Management | System Settings |
+|:---:|:---:|:---:|:---:|
+| ![Dashboard](docs/screenshot1.png) | ![Network](docs/screenshot2.png) | ![WiFi](docs/screenshot3.png) | ![System](docs/screenshot4.png) |
+
+## Featu
 
 ### Network Management
 - **Modem Control**: View IMEI, ICCID, carrier info, signal strength

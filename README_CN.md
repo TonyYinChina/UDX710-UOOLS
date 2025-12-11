@@ -1,4 +1,4 @@
-# 5G MiFi 管理面板
+# 5G MiFi 管理面板(UDX710)
 
 基于Web的5G MiFi设备管理界面，运行于嵌入式Linux系统（aarch64）。
 
@@ -15,6 +15,13 @@
 
 > 💡 **切换版本**: `git checkout SZ50` 切换到SZ50专用版，`git checkout main` 切换到通用版
 
+### 📥 软件下载
+
+| 版本 | 下载链接 |
+|:---:|:---:|
+| **UDX710 通用版** | [📥 点击下载](https://github.com/LeoChen-CoreMind/UDX710-UOOLS/releases/latest) |
+| **SZ50 专用版** | [📥 点击下载](https://github.com/LeoChen-CoreMind/UDX710-UOOLS/releases/latest) |
+
 ### SZ50专用版额外功能
 - 🔆 **LED灯控制** - 自定义LED指示灯状态
 - 🔘 **按键监听** - 物理按键事件响应
@@ -30,6 +37,12 @@
 | **内存占用** (运行7小时) | ~1 MB | 高得多 |
 
 轻量、高效，完美适配资源受限的嵌入式设备！
+
+## 📸 界面预览
+
+| 主面板 | 网络信息 | WiFi管理 | 系统设置 |
+|:---:|:---:|:---:|:---:|
+| ![主面板](docs/screenshot1.png) | ![网络信息](docs/screenshot2.png) | ![WiFi管理](docs/screenshot3.png) | ![系统设置](docs/screenshot4.png) |
 
 ## 功能特性
 
