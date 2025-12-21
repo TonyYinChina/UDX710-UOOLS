@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 import { useApi } from '../composables/useApi'
 
+const { t } = useI18n()
 const api = useApi()
 
 const { success, error } = useToast()
@@ -24,7 +26,7 @@ const installing = ref(false)
 const uploadProgress = ref(0)
 const installProgress = ref(0)
 const installStage = ref('')
-const currentVersion = ref('1.3.2')
+const currentVersion = ref('1.3.3')
 const latestVersion = ref('')
 const updateAvailable = ref(false)
 const updateLog = ref([])
@@ -55,17 +57,17 @@ function handleDrop(event) {
 
 function validateAndSetFile(file) {
   if (!file.name.endsWith('.zip')) {
-    error('请选择ZIP格式的更新包')
+    error(t('update.selectZipFile'))
     return
   }
   if (file.size > 100 * 1024 * 1024) {
-    error('文件大小不能超过100MB')
+    error(t('update.fileTooLarge'))
     return
   }
   selectedFile.value = file
   fileName.value = file.name
   fileSize.value = file.size
-  success('文件已选择: ' + file.name)
+  success(t('update.fileSelected') + ': ' + file.name)
 }
 
 function clearFile() {
@@ -81,7 +83,7 @@ async function fetchCurrentVersion() {
     const res = await api.get('/api/update/version')
     if (res.version) currentVersion.value = res.version
   } catch (e) {
-    console.error('获取版本失败:', e)
+    console.error('Failed to get version:', e)
   }
 }
 
@@ -89,28 +91,28 @@ async function fetchCurrentVersion() {
 async function checkUpdate() {
   checking.value = true
   updateLog.value = []
-  addLog('正在连接更新服务器...')
+  addLog(t('update.connectingServer'))
   
   try {
     const res = await api.get('/api/update/check')
-    addLog('正在检查最新版本...')
+    addLog(t('update.checkingLatest'))
     
     if (res.has_update) {
       latestVersion.value = res.latest_version
       updateAvailable.value = true
       updateUrl.value = res.url || ''
-      addLog(`发现新版本: v${res.latest_version}`)
-      if (res.changelog) addLog(`更新内容: ${res.changelog}`)
-      success('发现新版本 v' + res.latest_version)
+      addLog(t('update.foundNewVersion') + ': v' + res.latest_version)
+      if (res.changelog) addLog(t('update.updateContent') + ': ' + res.changelog)
+      success(t('update.foundNewVersion') + ' v' + res.latest_version)
     } else {
       latestVersion.value = res.current_version
       updateAvailable.value = false
-      addLog('当前已是最新版本')
-      success('当前已是最新版本')
+      addLog(t('update.alreadyLatest'))
+      success(t('update.alreadyLatest'))
     }
   } catch (e) {
-    addLog('检查更新失败: ' + (e.message || '网络错误'))
-    error('检查更新失败')
+    addLog(t('update.checkFailed') + ': ' + (e.message || t('toast.networkError')))
+    error(t('update.checkFailed'))
   } finally {
     checking.value = false
   }
@@ -121,10 +123,10 @@ async function startUpdate() {
   if (!canUpdate.value) return
   
   const confirmed = await confirm({
-    title: '系统更新',
+    title: t('update.title'),
     message: updateMode.value === 'file' 
-      ? `确认使用 ${fileName.value} 进行更新？更新过程中请勿断电。`
-      : '确认从远程链接下载并安装更新？更新过程中请勿断电。',
+      ? t('update.confirmFileUpdate', { filename: fileName.value })
+      : t('update.confirmUrlUpdate'),
     danger: true
   })
   if (!confirmed) return
@@ -136,7 +138,7 @@ async function startUpdate() {
   try {
     // 步骤1: 上传或下载
     if (updateMode.value === 'file') {
-      addLog('正在上传更新包...')
+      addLog(t('update.uploadingPackage'))
       const formData = new FormData()
       formData.append('file', selectedFile.value)
       
@@ -148,13 +150,13 @@ async function startUpdate() {
       
       if (uploadData.error) throw new Error(uploadData.error)
       uploadProgress.value = 100
-      addLog('上传完成: ' + (uploadData.size ? Math.round(uploadData.size/1024) + 'KB' : ''))
+      addLog(t('update.uploadComplete') + ': ' + (uploadData.size ? Math.round(uploadData.size/1024) + 'KB' : ''))
     } else {
-      addLog('正在下载更新包...')
+      addLog(t('update.downloadingPackage'))
       const downloadRes = await api.post('/api/update/download', { url: updateUrl.value })
       if (downloadRes.error) throw new Error(downloadRes.error)
       uploadProgress.value = 100
-      addLog('下载完成')
+      addLog(t('update.downloadComplete'))
     }
     
     await sleep(500)
@@ -163,33 +165,33 @@ async function startUpdate() {
     installProgress.value = 0
     
     // 步骤2: 解压
-    installStage.value = '解压更新包'
-    addLog('正在解压更新包...')
+    installStage.value = t('update.extractingPackage')
+    addLog(t('update.extractingPackage') + '...')
     installProgress.value = 30
     
     const extractRes = await api.post('/api/update/extract')
     if (extractRes.error) throw new Error(extractRes.error)
-    addLog('解压完成')
+    addLog(t('update.extractComplete'))
     installProgress.value = 50
     
     // 步骤3: 安装
-    installStage.value = '执行安装脚本'
-    addLog('正在执行安装脚本...')
+    installStage.value = t('update.executingScript')
+    addLog(t('update.executingScript') + '...')
     installProgress.value = 70
     
     const installRes = await api.post('/api/update/install')
     if (installRes.error) throw new Error(installRes.error)
     
     installProgress.value = 100
-    addLog('✓ 安装完成！')
-    if (installRes.output) addLog('输出: ' + installRes.output)
-    addLog('设备即将重启...')
+    addLog('✓ ' + t('update.installComplete'))
+    if (installRes.output) addLog(t('update.output') + ': ' + installRes.output)
+    addLog(t('update.deviceRebooting'))
     
-    success('系统更新成功，设备正在重启')
+    success(t('update.updateSuccess'))
     
   } catch (e) {
-    addLog('✗ 更新失败: ' + (e.message || '未知错误'))
-    error('更新失败: ' + (e.message || '未知错误'))
+    addLog('✗ ' + t('update.updateFailed') + ': ' + (e.message || t('common.error')))
+    error(t('update.updateFailed') + ': ' + (e.message || t('common.error')))
   } finally {
     uploading.value = false
     installing.value = false
@@ -220,15 +222,15 @@ onMounted(() => {
           <i class="fas fa-cloud-download-alt text-white text-lg sm:text-xl"></i>
         </div>
         <div>
-          <h3 class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">系统更新</h3>
-          <p class="text-slate-500 dark:text-white/50 text-xs sm:text-sm">当前版本: v{{ currentVersion }}</p>
+          <h3 class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">{{ $t('update.title') }}</h3>
+          <p class="text-slate-500 dark:text-white/50 text-xs sm:text-sm">{{ $t('update.currentVersion') }}: v{{ currentVersion }}</p>
         </div>
       </div>
       <button @click="checkUpdate" :disabled="checking || uploading || installing"
         class="px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all disabled:opacity-50">
         <i :class="checking ? 'fas fa-spinner animate-spin' : 'fas fa-sync-alt'" class="mr-1 sm:mr-2"></i>
-        <span class="hidden sm:inline">{{ checking ? '检查中...' : '检查更新' }}</span>
-        <span class="sm:hidden">{{ checking ? '检查中' : '检查' }}</span>
+        <span class="hidden sm:inline">{{ checking ? $t('update.checking') : $t('update.checkUpdate') }}</span>
+        <span class="sm:hidden">{{ checking ? $t('update.checking') : $t('update.checkUpdate') }}</span>
       </button>
     </div>
 
@@ -237,12 +239,12 @@ onMounted(() => {
       <button @click="updateMode = 'url'" :disabled="uploading || installing"
         class="flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all disabled:opacity-50"
         :class="updateMode === 'url' ? 'bg-white dark:bg-white/20 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-500 dark:text-white/50 hover:text-slate-700 dark:hover:text-white/70'">
-        <i class="fas fa-link mr-1 sm:mr-2"></i>远程链接
+        <i class="fas fa-link mr-1 sm:mr-2"></i>{{ $t('update.remoteUrl') }}
       </button>
       <button @click="updateMode = 'file'" :disabled="uploading || installing"
         class="flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all disabled:opacity-50"
         :class="updateMode === 'file' ? 'bg-white dark:bg-white/20 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-500 dark:text-white/50 hover:text-slate-700 dark:hover:text-white/70'">
-        <i class="fas fa-file-archive mr-1 sm:mr-2"></i>本地文件
+        <i class="fas fa-file-archive mr-1 sm:mr-2"></i>{{ $t('update.localFile') }}
       </button>
     </div>
 
@@ -260,7 +262,7 @@ onMounted(() => {
             class="w-full pl-14 sm:pl-16 pr-4 py-3 sm:py-4 bg-slate-50 dark:bg-white/10 border border-slate-200 dark:border-white/20 rounded-xl sm:rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/30 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 transition-all disabled:opacity-50 text-sm sm:text-base">
         </div>
         <p class="mt-2 text-slate-500 dark:text-white/50 text-xs sm:text-sm">
-          <i class="fas fa-info-circle mr-1"></i>输入更新包的下载链接
+          <i class="fas fa-info-circle mr-1"></i>{{ $t('update.enterDownloadUrl') }}
         </p>
       </div>
 
@@ -277,9 +279,9 @@ onMounted(() => {
             <i class="fas fa-cloud-upload-alt text-emerald-500 text-xl sm:text-2xl"></i>
           </div>
           <p class="text-slate-700 dark:text-white/80 font-medium text-sm sm:text-base mb-1">
-            {{ isDragging ? '释放文件' : '点击或拖拽上传' }}
+            {{ isDragging ? $t('update.releaseFile') : $t('update.clickOrDrag') }}
           </p>
-          <p class="text-slate-500 dark:text-white/50 text-xs sm:text-sm">支持 ZIP 格式，最大 100MB</p>
+          <p class="text-slate-500 dark:text-white/50 text-xs sm:text-sm">{{ $t('update.supportZip') }}</p>
         </div>
         
         <!-- 已选文件 -->
@@ -314,10 +316,10 @@ onMounted(() => {
             </div>
             <div>
               <p class="text-slate-900 dark:text-white font-medium text-sm sm:text-base">
-                {{ uploading ? (updateMode === 'file' ? '上传中' : '下载中') : installStage }}
+                {{ uploading ? (updateMode === 'file' ? $t('update.uploading') : $t('update.downloading')) : installStage }}
               </p>
               <p class="text-slate-500 dark:text-white/50 text-xs sm:text-sm">
-                {{ uploading ? '请勿关闭页面' : '正在安装更新' }}
+                {{ uploading ? $t('update.doNotClose') : $t('update.installingUpdate') }}
               </p>
             </div>
           </div>
@@ -340,7 +342,7 @@ onMounted(() => {
       <div v-if="updateLog.length > 0" class="mb-4 sm:mb-6">
         <div class="flex items-center space-x-2 mb-2 sm:mb-3">
           <i class="fas fa-terminal text-slate-400 dark:text-white/40 text-xs sm:text-sm"></i>
-          <span class="text-slate-500 dark:text-white/50 text-xs sm:text-sm font-medium">更新日志</span>
+          <span class="text-slate-500 dark:text-white/50 text-xs sm:text-sm font-medium">{{ $t('update.updateLog') }}</span>
         </div>
         <div class="bg-slate-900 dark:bg-black/50 rounded-xl sm:rounded-2xl p-3 sm:p-4 max-h-32 sm:max-h-40 overflow-y-auto font-mono text-xs sm:text-sm">
           <div v-for="(log, index) in updateLog" :key="index" class="flex space-x-2 sm:space-x-3 mb-1 last:mb-0">
@@ -355,14 +357,14 @@ onMounted(() => {
     <button @click="startUpdate" :disabled="!canUpdate || uploading || installing"
       class="w-full py-3 sm:py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium rounded-xl sm:rounded-2xl hover:shadow-lg hover:shadow-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base">
       <i :class="uploading || installing ? 'fas fa-spinner animate-spin' : 'fas fa-rocket'" class="mr-2"></i>
-      {{ uploading ? '上传中...' : installing ? '安装中...' : '开始更新' }}
+      {{ uploading ? $t('update.uploading') : installing ? $t('update.installing') : $t('update.startUpdate') }}
     </button>
 
     <!-- 提示信息 -->
     <div class="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
       <p class="text-amber-600 dark:text-amber-400 text-xs sm:text-sm flex items-start">
         <i class="fas fa-exclamation-triangle mr-2 mt-0.5 flex-shrink-0"></i>
-        <span>更新过程中请勿断电或关闭页面，更新完成后建议重启设备</span>
+        <span>{{ $t('update.updateWarning') }}</span>
       </p>
     </div>
 

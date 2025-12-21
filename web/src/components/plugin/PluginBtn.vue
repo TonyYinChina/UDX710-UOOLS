@@ -9,7 +9,7 @@
     @click="$emit('click', $event)">
     <div v-if="loading" class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
     <i v-else-if="icon" :class="['text-sm', icon.startsWith('fa') ? icon : `fa fa-${icon}`]"></i>
-    <span><slot>按钮</slot></span>
+    <span><slot>Button</slot></span>
   </button>
 </template>
 

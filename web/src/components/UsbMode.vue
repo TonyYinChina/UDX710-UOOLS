@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getUsbMode, setUsbMode, usbAdvanceSwitch, deviceControl } from '../composables/useApi'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
+const { t } = useI18n()
 const { success, error } = useToast()
 const { confirm } = useConfirm()
 
@@ -37,15 +39,15 @@ async function fetchCurrentMode() {
       if (modeVal > 0 && modeValueToName[modeVal]) {
         currentModeName.value = modeValueToName[modeVal]
       } else {
-        currentModeName.value = '未知'
+        currentModeName.value = t('usb.unknown')
       }
       isTemporary.value = res.Data.is_temporary || false
     } else {
-      currentModeName.value = '未知'
+      currentModeName.value = t('usb.unknown')
     }
   } catch (err) {
     console.error('获取USB模式失败:', err)
-    currentModeName.value = '获取失败'
+    currentModeName.value = t('usb.getFailed')
   }
 }
 
@@ -55,8 +57,8 @@ async function handleHotSwitch(mode) {
   if (!modeValue || hotSwitching.value) return
   
   const confirmed = await confirm({
-    title: '热切换确认',
-    message: `即将热切换到 ${mode.name} 模式，USB连接会短暂断开（约2秒），确定继续吗？`
+    title: t('usb.hotSwitchConfirm'),
+    message: t('usb.hotSwitchMsg', { mode: mode.name })
   })
   if (!confirmed) return
   
@@ -66,14 +68,14 @@ async function handleHotSwitch(mode) {
   try {
     const res = await usbAdvanceSwitch(modeValue)
     if (res.Code === 0) {
-      success(`已热切换到 ${mode.name} 模式`)
+      success(t('usb.hotSwitchSuccess', { mode: mode.name }))
       currentMode.value = modeValue
       currentModeName.value = mode.name
     } else {
-      throw new Error(res.Error || '热切换失败')
+      throw new Error(res.Error || t('usb.hotSwitchFailed'))
     }
   } catch (err) {
-    error('热切换失败: ' + err.message)
+    error(t('usb.hotSwitchFailed') + ': ' + err.message)
   } finally {
     hotSwitching.value = false
     loading.value = null
@@ -89,7 +91,7 @@ const modes = [
     id: 'cdc_ecm',
     name: 'CDC-ECM',
     icon: 'network-wired',
-    desc: '兼容性差，不支持绝大部分Windows设备，仅建议Android、MacOS和老旧Openwrt、Padavan路由器使用',
+    descKey: 'usb.cdcEcmDesc',
     gradient: 'from-blue-500 to-cyan-500',
     gradientLight: 'from-blue-50 to-cyan-50',
     gradientDark: 'from-blue-500/20 to-cyan-500/20',
@@ -102,7 +104,7 @@ const modes = [
     id: 'cdc_ncm',
     name: 'CDC-NCM',
     icon: 'broadcast-tower',
-    desc: '仅测试，勿使用，兼容性差，不支持绝大部分Windows设备（DHCP可能异常）',
+    descKey: 'usb.cdcNcmDesc',
     gradient: 'from-red-500 to-orange-500',
     gradientLight: 'from-red-50 to-orange-50',
     gradientDark: 'from-red-500/20 to-orange-500/20',
@@ -115,7 +117,7 @@ const modes = [
     id: 'rndis',
     name: 'RNDIS',
     icon: ['fab', 'usb'],
-    desc: '兼容性好，支持Windows、Openwrt、Padavan路由器，不支持绝大部分Android和MacOS',
+    descKey: 'usb.rndisDesc',
     gradient: 'from-green-500 to-emerald-500',
     gradientLight: 'from-green-50 to-emerald-50',
     gradientDark: 'from-green-500/20 to-emerald-500/20',
@@ -131,10 +133,10 @@ async function handleSwitch(mode, permanent) {
   if (loading.value) return
 
   // 切换确认
-  const confirmTitle = permanent ? '永久模式变更' : '临时模式变更'
+  const confirmTitle = permanent ? t('usb.permChangeTitle') : t('usb.tempChangeTitle')
   const confirmMsg = permanent 
-    ? `警告：这将永久更改为${mode.name}模式，重启后永久生效，确定要继续吗？`
-    : `确定要临时切换到${mode.name}模式吗？重启后生效，再次重启将恢复默认。`
+    ? t('usb.permChangeMsg', { mode: mode.name })
+    : t('usb.tempChangeMsg', { mode: mode.name })
   
   const confirmed = await confirm({ title: confirmTitle, message: confirmMsg })
   if (!confirmed) return
@@ -143,25 +145,26 @@ async function handleSwitch(mode, permanent) {
   try {
     const res = await setUsbMode(mode.id, permanent)
     if (res.Code === 0) {
-      success(`${permanent ? '永久' : '临时'}切换到${mode.name}模式成功`)
+      const typeText = permanent ? t('usb.permMode').split('（')[0] : t('usb.tempMode').split('（')[0]
+      success(t('usb.switchSuccess', { type: typeText, mode: mode.name }))
       
       // 重新获取当前模式状态
       await fetchCurrentMode()
       
       // 询问是否重启
       const reboot = await confirm({
-        title: '重启设备',
-        message: permanent ? '必须重启才能生效，是否立即重启？' : '是否立即重启以应用变更？'
+        title: t('usb.rebootTitle'),
+        message: permanent ? t('usb.rebootMsgPerm') : t('usb.rebootMsgTemp')
       })
       if (reboot) {
         await deviceControl('reboot')
-        success('系统正在重启...')
+        success(t('usb.rebooting'))
       }
     } else {
-      throw new Error(res.Error || '切换失败')
+      throw new Error(res.Error || t('usb.switchFailed'))
     }
   } catch (err) {
-    error('切换失败: ' + err.message)
+    error(t('usb.switchFailed') + ': ' + err.message)
   } finally {
     loading.value = null
   }
@@ -179,17 +182,17 @@ async function handleSwitch(mode, permanent) {
             <font-awesome-icon :icon="['fab', 'usb']" class="text-white text-2xl" />
           </div>
           <div>
-            <h2 class="text-slate-800 dark:text-white font-bold text-xl">USB模式切换</h2>
-            <p class="text-slate-600 dark:text-white/50 text-sm mt-1">选择适合您设备的USB网络模式</p>
+            <h2 class="text-slate-800 dark:text-white font-bold text-xl">{{ t('usb.title') }}</h2>
+            <p class="text-slate-600 dark:text-white/50 text-sm mt-1">{{ t('usb.subtitle') }}</p>
           </div>
         </div>
         <!-- 当前模式状态 -->
         <div v-if="currentModeName" class="flex items-center space-x-3 px-4 py-2 rounded-xl bg-white/60 dark:bg-white/10 border border-slate-200/60 dark:border-white/10">
           <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
           <div class="text-sm">
-            <span class="text-slate-500 dark:text-white/50">当前模式：</span>
+            <span class="text-slate-500 dark:text-white/50">{{ t('usb.currentMode') }}：</span>
             <span class="font-semibold text-slate-800 dark:text-white">{{ currentModeName }}</span>
-            <span v-if="isTemporary" class="ml-2 px-2 py-0.5 text-xs bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full">临时</span>
+            <span v-if="isTemporary" class="ml-2 px-2 py-0.5 text-xs bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full">{{ t('usb.temporary') }}</span>
           </div>
         </div>
       </div>
@@ -213,13 +216,13 @@ async function handleSwitch(mode, permanent) {
             </div>
             <div>
               <h3 class="text-slate-800 dark:text-white font-bold text-lg">{{ mode.name }}</h3>
-              <span :class="`text-xs font-medium ${mode.text}`">USB网络模式</span>
+              <span :class="`text-xs font-medium ${mode.text}`">{{ t('usb.usbNetworkMode') }}</span>
             </div>
           </div>
           
           <!-- 描述 -->
           <p class="text-slate-600 dark:text-white/60 text-sm leading-relaxed mb-5 min-h-[60px]">
-            {{ mode.desc }}
+            {{ t(mode.descKey) }}
           </p>
           
           <!-- 按钮组 -->
@@ -232,7 +235,7 @@ async function handleSwitch(mode, permanent) {
             >
               <font-awesome-icon v-if="loading === `${mode.id}_hot`" icon="spinner" spin />
               <font-awesome-icon v-else icon="bolt" />
-              <span>热切换（立即生效）</span>
+              <span>{{ t('usb.hotSwitch') }}</span>
             </button>
             
             <!-- 临时切换按钮 -->
@@ -242,7 +245,7 @@ async function handleSwitch(mode, permanent) {
               :class="`w-full py-3 px-4 rounded-xl bg-gradient-to-r ${mode.btnTemp} text-white font-medium text-sm shadow-lg ${mode.shadow} hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2`"
             >
               <font-awesome-icon v-if="loading === `${mode.id}_temp`" icon="spinner" spin />
-              <span>临时模式（重启生效）</span>
+              <span>{{ t('usb.tempMode') }}</span>
             </button>
             
             <!-- 永久切换按钮 -->
@@ -252,7 +255,7 @@ async function handleSwitch(mode, permanent) {
               :class="`w-full py-3 px-4 rounded-xl bg-gradient-to-r ${mode.btnPerm} text-white font-medium text-sm shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2`"
             >
               <font-awesome-icon v-if="loading === `${mode.id}_perm`" icon="spinner" spin />
-              <span>永久模式（重启生效）</span>
+              <span>{{ t('usb.permMode') }}</span>
             </button>
           </div>
         </div>
@@ -264,11 +267,11 @@ async function handleSwitch(mode, permanent) {
       <div class="flex items-start space-x-3">
         <font-awesome-icon icon="exclamation-triangle" class="text-amber-500 mt-0.5" />
         <div class="text-sm text-amber-800 dark:text-amber-200">
-          <p class="font-medium mb-1">注意事项</p>
+          <p class="font-medium mb-1">{{ t('usb.notes') }}</p>
           <ul class="list-disc list-inside space-y-1 text-amber-700 dark:text-amber-300/80">
-            <li><span class="font-medium text-violet-600 dark:text-violet-400">热切换</span>：立即生效，USB连接会短暂断开约2秒</li>
-            <li><span class="font-medium">临时模式</span>：重启后生效，再次重启恢复默认</li>
-            <li><span class="font-medium">永久模式</span>：重启后永久生效</li>
+            <li><span class="font-medium text-violet-600 dark:text-violet-400">{{ t('usb.noteHot').split('：')[0] }}</span>：{{ t('usb.noteHot').split('：')[1] }}</li>
+            <li><span class="font-medium">{{ t('usb.noteTemp').split('：')[0] }}</span>：{{ t('usb.noteTemp').split('：')[1] }}</li>
+            <li><span class="font-medium">{{ t('usb.notePerm').split('：')[0] }}</span>：{{ t('usb.notePerm').split('：')[1] }}</li>
           </ul>
         </div>
       </div>
@@ -279,12 +282,12 @@ async function handleSwitch(mode, permanent) {
       <div class="flex items-start space-x-3">
         <font-awesome-icon icon="shield-halved" class="text-red-500 mt-0.5" />
         <div class="text-sm text-red-800 dark:text-red-200">
-          <p class="font-bold mb-2">⚠️ 免责声明</p>
+          <p class="font-bold mb-2">⚠️ {{ t('usb.disclaimer') }}</p>
           <ul class="list-disc list-inside space-y-1 text-red-700 dark:text-red-300/80">
-            <li>部分设备可能不兼容某些USB模式，请根据自身设备情况谨慎选择</li>
-            <li>切换模式可能导致设备无法正常联网，请确保了解恢复方法</li>
-            <li>使用本功能即表示您已了解风险并自行承担后果</li>
-            <li class="font-medium">本功能不提供任何售后支持，请自行解决使用中遇到的问题</li>
+            <li>{{ t('usb.disclaimerItem1') }}</li>
+            <li>{{ t('usb.disclaimerItem2') }}</li>
+            <li>{{ t('usb.disclaimerItem3') }}</li>
+            <li>{{ t('usb.disclaimerItem4') }}</li>
           </ul>
         </div>
       </div>

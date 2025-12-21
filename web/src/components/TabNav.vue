@@ -1,4 +1,8 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 defineProps({
   activeTab: {
     type: String,
@@ -9,10 +13,10 @@ defineProps({
 const emit = defineEmits(['change'])
 
 const tabs = [
-  { id: 'monitor', label: '系统监控', icon: 'fa-tachometer-alt' },
-  { id: 'network', label: '网络管理', icon: 'fa-network-wired' },
-  { id: 'traffic', label: '流量统计', icon: 'fa-chart-line' },
-  { id: 'settings', label: '系统设置', icon: 'fa-cogs' }
+  { id: 'monitor', labelKey: 'menu.monitor', icon: 'fa-tachometer-alt' },
+  { id: 'network', labelKey: 'menu.network', icon: 'fa-network-wired' },
+  { id: 'traffic', labelKey: 'menu.traffic', icon: 'fa-chart-line' },
+  { id: 'settings', labelKey: 'menu.settings', icon: 'fa-cogs' }
 ]
 
 function handleClick(tabId) {
@@ -36,7 +40,7 @@ function handleClick(tabId) {
           ]"
         >
           <i :class="['fas', tab.icon, 'mr-2']"></i>
-          <span>{{ tab.label }}</span>
+          <span>{{ t(tab.labelKey) }}</span>
         </button>
       </div>
     </div>

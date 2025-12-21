@@ -1,9 +1,11 @@
 <script setup>
 import { inject, computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { clearCache, getCurrentBand } from '../composables/useApi'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
+const { t } = useI18n()
 const { success, error } = useToast()
 const { confirm } = useConfirm()
 
@@ -66,6 +68,23 @@ function getSignalInfo(rsrp) {
   return { color: 'text-red-400', bg: 'from-red-500 to-rose-400', level: 1 }
 }
 
+// 判断是否有网络连接（通过RSRP是否有有效值来判断）
+const hasNetwork = computed(() => {
+  return currentBand.value && currentBand.value.rsrp && currentBand.value.rsrp !== 0
+})
+
+// 格式化频段值（无网络时显示N/A）
+function formatBandValue(value) {
+  if (!hasNetwork.value) return 'N/A'
+  return value ?? 'N/A'
+}
+
+// 格式化系统信息值（无网络时显示N/A，用于Modem信息板块）
+function formatSystemValue(value) {
+  if (!hasNetwork.value) return 'N/A'
+  return value ?? 'N/A'
+}
+
 // 计算运行时间
 const uptime = computed(() => {
   const s = systemInfo.value?.uptime || 0
@@ -73,9 +92,9 @@ const uptime = computed(() => {
   const hours = Math.floor((s % 86400) / 3600)
   const minutes = Math.floor((s % 3600) / 60)
   let str = ''
-  if (days > 0) str += `${days}天 `
-  if (hours > 0 || days > 0) str += `${hours}小时 `
-  str += `${minutes}分钟`
+  if (days > 0) str += t('common.days', { n: days }) + ' '
+  if (hours > 0 || days > 0) str += t('common.hours', { n: hours }) + ' '
+  str += t('common.minutes', { n: minutes })
   return str
 })
 
@@ -109,14 +128,14 @@ function formatRate(kbps) {
 // 清除缓存
 async function handleClearCache() {
   if (clearingCache.value) return
-  if (!await confirm({ title: '清除缓存', message: '确定要清除系统缓存吗？' })) return
+  if (!await confirm({ title: t('monitor.clearCache'), message: t('monitor.confirmClearCache') })) return
   clearingCache.value = true
   try {
     const result = await clearCache()
-    if (result.status === 'success') success('缓存清除成功')
-    else throw new Error(result.message || '清除失败')
+    if (result.status === 'success') success(t('monitor.cacheCleared'))
+    else throw new Error(result.message || t('monitor.cacheClearFailed'))
   } catch (err) {
-    error('清除失败: ' + err.message)
+    error(t('monitor.cacheClearFailed') + ': ' + err.message)
   } finally {
     clearingCache.value = false
   }
@@ -138,8 +157,8 @@ async function handleClearCache() {
               <i class="fas fa-satellite-dish text-white text-xl"></i>
             </div>
             <div>
-              <h3 class="text-slate-800 dark:text-white font-bold text-lg">当前连接频段</h3>
-              <p class="text-slate-600 dark:text-white/50 text-sm">实时网络信息</p>
+              <h3 class="text-slate-800 dark:text-white font-bold text-lg">{{ t('monitor.title') }}</h3>
+              <p class="text-slate-600 dark:text-white/50 text-sm">{{ t('monitor.subtitle') }}</p>
             </div>
           </div>
           <div class="flex items-center space-x-4">
@@ -159,7 +178,7 @@ async function handleClearCache() {
               class="group px-4 py-2 bg-white/80 dark:bg-white/10 backdrop-blur text-slate-700 dark:text-white/80 text-sm rounded-xl hover:bg-white dark:hover:bg-white/20 transition-all border border-slate-300 dark:border-white/10">
               <font-awesome-icon v-if="bandLoading" icon="spinner" spin class="mr-2" />
               <font-awesome-icon v-else icon="sync-alt" class="mr-2 group-hover:rotate-180 transition-transform duration-500" />
-              刷新
+              {{ t('common.refresh') }}
             </button>
           </div>
         </div>
@@ -173,8 +192,8 @@ async function handleClearCache() {
               <div class="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 mx-auto mb-1.5 sm:mb-2 md:mb-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
                 <i class="fas fa-tower-cell text-white text-xs sm:text-sm md:text-lg"></i>
               </div>
-              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">网络类型</p>
-              <p class="text-slate-800 dark:text-white font-bold text-sm sm:text-base md:text-lg">{{ currentBand.network_type || 'N/A' }}</p>
+              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">{{ t('monitor.networkType') }}</p>
+              <p class="text-slate-800 dark:text-white font-bold text-sm sm:text-base md:text-lg">{{ formatBandValue(currentBand.network_type) }}</p>
             </div>
           </div>
           
@@ -185,8 +204,8 @@ async function handleClearCache() {
               <div class="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 mx-auto mb-1.5 sm:mb-2 md:mb-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500 to-pink-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
                 <i class="fas fa-broadcast-tower text-white text-xs sm:text-sm md:text-lg"></i>
               </div>
-              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">频段</p>
-              <p class="text-purple-700 dark:text-purple-400 font-bold text-base sm:text-lg md:text-xl">{{ currentBand.band || 'N/A' }}</p>
+              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">{{ t('monitor.band') }}</p>
+              <p class="text-purple-700 dark:text-purple-400 font-bold text-sm sm:text-base md:text-lg">{{ formatBandValue(currentBand.band) }}</p>
             </div>
           </div>
           
@@ -197,8 +216,8 @@ async function handleClearCache() {
               <div class="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 mx-auto mb-1.5 sm:mb-2 md:mb-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-500 to-orange-400 flex items-center justify-center shadow-lg shadow-amber-500/30">
                 <i class="fas fa-wave-square text-white text-xs sm:text-sm md:text-lg"></i>
               </div>
-              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">频点</p>
-              <p class="text-slate-800 dark:text-white font-mono font-bold text-xs sm:text-sm md:text-base">{{ currentBand.arfcn || 'N/A' }}</p>
+              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">{{ t('monitor.arfcn') }}</p>
+              <p class="text-slate-800 dark:text-white font-mono font-bold text-sm sm:text-base md:text-lg">{{ formatBandValue(currentBand.arfcn) }}</p>
             </div>
           </div>
           
@@ -209,20 +228,20 @@ async function handleClearCache() {
               <div class="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 mx-auto mb-1.5 sm:mb-2 md:mb-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-green-500/30">
                 <i class="fas fa-hashtag text-white text-xs sm:text-sm md:text-lg"></i>
               </div>
-              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">PCI</p>
-              <p class="text-slate-800 dark:text-white font-bold text-sm sm:text-base md:text-lg">{{ currentBand.pci || 'N/A' }}</p>
+              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">{{ t('monitor.pci') }}</p>
+              <p class="text-slate-800 dark:text-white font-bold text-sm sm:text-base md:text-lg">{{ formatBandValue(currentBand.pci) }}</p>
             </div>
           </div>
 
-          <!-- RSRP -->
-          <div class="group relative overflow-hidden p-2 sm:p-3 md:p-4 bg-white/80 dark:bg-white/5 backdrop-blur rounded-xl sm:rounded-2xl border border-slate-200 dark:border-white/10 hover:border-rose-500/50 transition-all hover:scale-105">
+          <!-- RSRP - 手机端隐藏 -->
+          <div class="hidden sm:block group relative overflow-hidden p-2 sm:p-3 md:p-4 bg-white/80 dark:bg-white/5 backdrop-blur rounded-xl sm:rounded-2xl border border-slate-200 dark:border-white/10 hover:border-rose-500/50 transition-all hover:scale-105">
             <div class="absolute inset-0 bg-gradient-to-br from-rose-500/0 to-pink-500/0 group-hover:from-rose-500/10 group-hover:to-pink-500/10 transition-all"></div>
             <div class="relative text-center">
               <div class="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 mx-auto mb-1.5 sm:mb-2 md:mb-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-rose-500 to-pink-400 flex items-center justify-center shadow-lg shadow-rose-500/30">
                 <i class="fas fa-signal text-white text-xs sm:text-sm md:text-lg"></i>
               </div>
-              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">RSRP</p>
-              <p class="text-rose-700 dark:text-rose-400 font-bold text-xs sm:text-sm md:text-lg">
+              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">{{ t('monitor.rsrp') }}</p>
+              <p class="text-rose-700 dark:text-rose-400 font-bold text-sm sm:text-base md:text-lg">
                 {{ currentBand.rsrp ? currentBand.rsrp.toFixed(1) + ' dBm' : 'N/A' }}
               </p>
             </div>
@@ -235,8 +254,8 @@ async function handleClearCache() {
               <div class="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 mx-auto mb-1.5 sm:mb-2 md:mb-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-cyan-500 to-blue-400 flex items-center justify-center shadow-lg shadow-cyan-500/30">
                 <i class="fas fa-chart-line text-white text-xs sm:text-sm md:text-lg"></i>
               </div>
-              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">RSRQ</p>
-              <p class="text-cyan-700 dark:text-cyan-400 font-bold text-xs sm:text-sm md:text-lg">{{ currentBand.rsrq ? currentBand.rsrq.toFixed(1) + ' dB' : 'N/A' }}</p>
+              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">{{ t('monitor.rsrq') }}</p>
+              <p class="text-cyan-700 dark:text-cyan-400 font-bold text-sm sm:text-base md:text-lg">{{ currentBand.rsrq ? currentBand.rsrq.toFixed(1) + ' dB' : 'N/A' }}</p>
             </div>
           </div>
           
@@ -247,8 +266,8 @@ async function handleClearCache() {
               <div class="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 mx-auto mb-1.5 sm:mb-2 md:mb-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-indigo-500 to-purple-400 flex items-center justify-center shadow-lg shadow-indigo-500/30">
                 <i class="fas fa-chart-area text-white text-xs sm:text-sm md:text-lg"></i>
               </div>
-              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">SINR</p>
-              <p class="text-indigo-700 dark:text-indigo-400 font-bold text-xs sm:text-sm md:text-lg">{{ currentBand.sinr ? currentBand.sinr.toFixed(1) + ' dB' : 'N/A' }}</p>
+              <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">{{ t('monitor.sinr') }}</p>
+              <p class="text-indigo-700 dark:text-indigo-400 font-bold text-sm sm:text-base md:text-lg">{{ currentBand.sinr ? currentBand.sinr.toFixed(1) + ' dB' : 'N/A' }}</p>
             </div>
           </div>
         </div>
@@ -261,16 +280,16 @@ async function handleClearCache() {
               <i class="fas fa-satellite-dish text-purple-500 dark:text-purple-400 text-2xl"></i>
             </div>
           </div>
-          <p class="text-slate-600 dark:text-white/50 mt-4">正在获取频段信息...</p>
+          <p class="text-slate-600 dark:text-white/50 mt-4">{{ t('monitor.loadingBand') }}</p>
         </div>
         <!-- 无数据状态 -->
         <div v-else class="text-center py-12">
           <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 dark:bg-white/10 flex items-center justify-center">
             <i class="fas fa-satellite-dish text-slate-400 dark:text-white/40 text-2xl"></i>
           </div>
-          <p class="text-slate-500 dark:text-white/50">暂无频段信息</p>
+          <p class="text-slate-500 dark:text-white/50">{{ t('monitor.noBandInfo') }}</p>
           <button @click="fetchCurrentBand" class="mt-3 px-4 py-2 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-xl hover:bg-purple-500/30 transition-all text-sm">
-            <i class="fas fa-sync-alt mr-2"></i>重新获取
+            <i class="fas fa-sync-alt mr-2"></i>{{ t('monitor.retryFetch') }}
           </button>
         </div>
       </div>
@@ -285,7 +304,7 @@ async function handleClearCache() {
             <i class="fas fa-server text-white text-sm sm:text-base"></i>
           </div>
           <div class="min-w-0 flex-1">
-            <p class="text-slate-600 dark:text-white/50 text-xs">主机名</p>
+            <p class="text-slate-600 dark:text-white/50 text-xs">{{ t('monitor.hostname') }}</p>
             <p class="text-slate-800 dark:text-white font-bold text-sm sm:text-base truncate">{{ systemInfo?.hostname || '...' }}</p>
           </div>
         </div>
@@ -298,7 +317,7 @@ async function handleClearCache() {
             <i class="fas fa-microchip text-white text-sm sm:text-base"></i>
           </div>
           <div class="min-w-0 flex-1">
-            <p class="text-slate-600 dark:text-white/50 text-xs">架构</p>
+            <p class="text-slate-600 dark:text-white/50 text-xs">{{ t('monitor.architecture') }}</p>
             <p class="text-slate-800 dark:text-white font-bold text-sm sm:text-base">{{ systemInfo?.machine || '...' }}</p>
           </div>
         </div>
@@ -311,7 +330,7 @@ async function handleClearCache() {
             <i class="fas fa-clock text-white text-sm sm:text-base"></i>
           </div>
           <div class="min-w-0 flex-1">
-            <p class="text-slate-600 dark:text-white/50 text-xs">运行时间</p>
+            <p class="text-slate-600 dark:text-white/50 text-xs">{{ t('monitor.uptime') }}</p>
             <p class="text-slate-800 dark:text-white font-bold text-xs sm:text-sm truncate">{{ uptime || '...' }}</p>
           </div>
         </div>
@@ -324,7 +343,7 @@ async function handleClearCache() {
             <i class="fas fa-temperature-half text-white text-sm sm:text-base"></i>
           </div>
           <div class="min-w-0 flex-1">
-            <p class="text-slate-600 dark:text-white/50 text-xs">温度</p>
+            <p class="text-slate-600 dark:text-white/50 text-xs">{{ t('monitor.temperature') }}</p>
             <p class="text-slate-800 dark:text-white font-bold text-sm sm:text-base">{{ systemInfo?.thermal_temp || '...' }}</p>
           </div>
         </div>
@@ -344,12 +363,12 @@ async function handleClearCache() {
               <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
                 <i class="fas fa-memory text-white"></i>
               </div>
-              <h3 class="text-slate-900 dark:text-white font-bold">内存使用</h3>
+              <h3 class="text-slate-900 dark:text-white font-bold">{{ t('monitor.memoryUsage') }}</h3>
             </div>
             <button @click="handleClearCache" :disabled="clearingCache"
               class="px-4 py-2 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 text-yellow-600 dark:text-yellow-400 text-sm rounded-xl hover:from-yellow-500/30 hover:to-amber-500/30 transition-all border border-yellow-500/30">
               <i :class="clearingCache ? 'fas fa-spinner animate-spin' : 'fas fa-broom'" class="mr-2"></i>
-              {{ clearingCache ? '清除中' : '清除缓存' }}
+              {{ clearingCache ? t('monitor.clearing') : t('monitor.clearCache') }}
             </button>
           </div>
           
@@ -368,19 +387,19 @@ async function handleClearCache() {
               </svg>
               <div class="absolute inset-0 flex flex-col items-center justify-center">
                 <span class="text-slate-900 dark:text-white text-base sm:text-2xl md:text-3xl font-bold">{{ memoryPercent }}%</span>
-                <span class="text-slate-500 dark:text-white/50 text-[8px] sm:text-xs">已使用</span>
+                <span class="text-slate-500 dark:text-white/50 text-[8px] sm:text-xs">{{ t('monitor.used') }}</span>
               </div>
             </div>
             
             <div class="flex-1 space-y-1.5 sm:space-y-3">
               <div class="p-2 sm:p-3 bg-gradient-to-r from-slate-100 dark:from-white/5 to-transparent rounded-lg sm:rounded-xl border-l-4 border-cyan-500">
-                <div class="flex justify-between"><span class="text-slate-600 dark:text-white/60 text-xs sm:text-sm">已用</span><span class="text-slate-900 dark:text-white font-bold text-xs sm:text-base">{{ usedMemory }} MB</span></div>
+                <div class="flex justify-between"><span class="text-slate-600 dark:text-white/60 text-xs sm:text-sm">{{ t('monitor.used') }}</span><span class="text-slate-900 dark:text-white font-bold text-xs sm:text-base">{{ usedMemory }} MB</span></div>
               </div>
               <div class="p-2 sm:p-3 bg-gradient-to-r from-slate-100 dark:from-white/5 to-transparent rounded-lg sm:rounded-xl border-l-4 border-green-500">
-                <div class="flex justify-between"><span class="text-slate-600 dark:text-white/60 text-xs sm:text-sm">可用</span><span class="text-green-600 dark:text-green-400 font-bold text-xs sm:text-base">{{ systemInfo?.free_ram || 0 }} MB</span></div>
+                <div class="flex justify-between"><span class="text-slate-600 dark:text-white/60 text-xs sm:text-sm">{{ t('monitor.available') }}</span><span class="text-green-600 dark:text-green-400 font-bold text-xs sm:text-base">{{ systemInfo?.free_ram || 0 }} MB</span></div>
               </div>
               <div class="p-2 sm:p-3 bg-gradient-to-r from-slate-100 dark:from-white/5 to-transparent rounded-lg sm:rounded-xl border-l-4 border-yellow-500">
-                <div class="flex justify-between"><span class="text-slate-600 dark:text-white/60 text-xs sm:text-sm">缓存</span><span class="text-yellow-600 dark:text-yellow-400 font-bold text-xs sm:text-base">{{ systemInfo?.cached_ram || 0 }} MB</span></div>
+                <div class="flex justify-between"><span class="text-slate-600 dark:text-white/60 text-xs sm:text-sm">{{ t('monitor.cached') }}</span><span class="text-yellow-600 dark:text-yellow-400 font-bold text-xs sm:text-base">{{ systemInfo?.cached_ram || 0 }} MB</span></div>
               </div>
             </div>
           </div>
@@ -392,7 +411,7 @@ async function handleClearCache() {
                 <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
                   <i class="fas fa-microchip text-white text-sm"></i>
                 </div>
-                <span class="text-slate-900 dark:text-white font-medium">CPU使用率</span>
+                <span class="text-slate-900 dark:text-white font-medium">{{ t('monitor.cpuUsage') }}</span>
               </div>
               <span class="text-orange-600 dark:text-orange-400 font-bold text-xl">{{ cpuPercent }}%</span>
             </div>
@@ -421,16 +440,16 @@ async function handleClearCache() {
             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
               <i class="fas fa-broadcast-tower text-white"></i>
             </div>
-            <h3 class="text-slate-900 dark:text-white font-bold">Modem信息</h3>
+            <h3 class="text-slate-900 dark:text-white font-bold">{{ t('monitor.modemInfo') }}</h3>
           </div>
           
           <div class="space-y-3">
             <div class="group p-3 bg-slate-100 dark:bg-white/5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex justify-between items-center">
-              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-building mr-2 text-purple-400"></i>运营商</span>
+              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-building mr-2 text-purple-400"></i>{{ t('monitor.carrier') }}</span>
               <span class="text-slate-900 dark:text-white font-bold">{{ systemInfo?.carrier || 'N/A' }}</span>
             </div>
             <div class="group p-3 bg-slate-100 dark:bg-white/5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex justify-between items-center">
-              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-signal mr-2 text-cyan-400"></i>信号强度</span>
+              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-signal mr-2 text-cyan-400"></i>{{ t('monitor.signalStrength') }}</span>
               <div class="flex items-center space-x-2">
                 <div class="flex space-x-0.5 items-end">
                   <div class="w-1.5 h-2 rounded-full" :class="systemInfo?.signal_strength ? 'bg-green-400' : 'bg-slate-300 dark:bg-white/20'"></div>
@@ -438,16 +457,16 @@ async function handleClearCache() {
                   <div class="w-1.5 h-4 rounded-full" :class="systemInfo?.signal_strength ? 'bg-green-400' : 'bg-slate-300 dark:bg-white/20'"></div>
                   <div class="w-1.5 h-5 rounded-full" :class="systemInfo?.signal_strength ? 'bg-green-400' : 'bg-slate-300 dark:bg-white/20'"></div>
                 </div>
-                <span class="text-green-600 dark:text-green-400 font-bold">{{ systemInfo?.signal_strength || 'N/A' }}</span>
+                <span class="text-green-600 dark:text-green-400 font-bold">{{ systemInfo?.signal_strength ?? 'N/A' }}</span>
               </div>
             </div>
             <div class="group p-3 bg-slate-100 dark:bg-white/5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex justify-between items-center">
-              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-gauge-high mr-2 text-amber-400"></i>QCI</span>
-              <span class="text-amber-600 dark:text-amber-400 font-bold">{{ systemInfo?.qci || 'N/A' }}</span>
+              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-gauge-high mr-2 text-amber-400"></i>{{ t('monitor.qci') }}</span>
+              <span class="text-amber-600 dark:text-amber-400 font-bold">{{ formatSystemValue(systemInfo?.qci) }}</span>
             </div>
             <div class="p-3 bg-gradient-to-r from-green-500/10 via-transparent to-blue-500/10 rounded-xl border border-slate-200 dark:border-white/10">
               <div class="flex justify-between items-center">
-                <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-gauge mr-2 text-slate-400 dark:text-white/40"></i>签约速率</span>
+                <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-gauge mr-2 text-slate-400 dark:text-white/40"></i>{{ t('monitor.signedRate') }}</span>
                 <div class="flex items-center space-x-4">
                   <span class="text-green-600 dark:text-green-400 font-bold"><i class="fas fa-arrow-down text-xs mr-1"></i>{{ formatRate(systemInfo?.downlink_rate) }}</span>
                   <span class="text-blue-600 dark:text-blue-400 font-bold"><i class="fas fa-arrow-up text-xs mr-1"></i>{{ formatRate(systemInfo?.uplink_rate) }}</span>
@@ -455,14 +474,14 @@ async function handleClearCache() {
               </div>
             </div>
             <div @click="showImei = !showImei" class="group p-3 bg-slate-100 dark:bg-white/5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex justify-between items-center cursor-pointer select-none">
-              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-fingerprint mr-2 text-blue-400"></i>IMEI</span>
+              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-fingerprint mr-2 text-blue-400"></i>{{ t('monitor.imei') }}</span>
               <div class="flex items-center space-x-2">
                 <span class="text-slate-900 dark:text-white font-mono text-sm transition-all duration-300">{{ maskValue(systemInfo?.imei, showImei) }}</span>
                 <font-awesome-icon :icon="showImei ? 'eye' : 'eye-slash'" :class="showImei ? 'text-blue-400' : 'text-slate-400'" class="text-xs transition-all duration-300" />
               </div>
             </div>
             <div @click="showIccid = !showIccid" class="group p-3 bg-slate-100 dark:bg-white/5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all flex justify-between items-center cursor-pointer select-none">
-              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-sim-card mr-2 text-green-400"></i>ICCID</span>
+              <span class="text-slate-600 dark:text-white/60 text-sm"><i class="fas fa-sim-card mr-2 text-green-400"></i>{{ t('monitor.iccid') }}</span>
               <div class="flex items-center space-x-2">
                 <span class="text-slate-900 dark:text-white font-mono text-sm transition-all duration-300">{{ maskValue(systemInfo?.iccid, showIccid) }}</span>
                 <font-awesome-icon :icon="showIccid ? 'eye' : 'eye-slash'" :class="showIccid ? 'text-green-400' : 'text-slate-400'" class="text-xs transition-all duration-300" />
@@ -479,7 +498,7 @@ async function handleClearCache() {
         <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center">
           <i class="fas fa-heartbeat text-white"></i>
         </div>
-        <h3 class="text-slate-800 dark:text-white font-bold">系统状态</h3>
+        <h3 class="text-slate-800 dark:text-white font-bold">{{ t('monitor.systemStatus') }}</h3>
       </div>
       
       <div class="grid grid-cols-2 md:grid-cols-4 gap-1.5 sm:gap-2 md:gap-3">
@@ -489,7 +508,7 @@ async function handleClearCache() {
             <div class="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 mx-auto mb-1.5 sm:mb-2 md:mb-3 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-lg shadow-orange-500/30">
               <i class="fas fa-temperature-high text-white text-sm sm:text-base md:text-xl"></i>
             </div>
-            <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">温度</p>
+            <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">{{ t('monitor.temperature') }}</p>
             <p class="text-slate-800 dark:text-white font-bold text-base sm:text-lg md:text-xl">{{ systemInfo?.thermal_temp || '-' }}</p>
           </div>
         </div>
@@ -500,7 +519,7 @@ async function handleClearCache() {
             <div class="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 mx-auto mb-1.5 sm:mb-2 md:mb-3 rounded-xl sm:rounded-2xl bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-green-500/30">
               <i class="fas fa-plug text-white text-sm sm:text-base md:text-xl"></i>
             </div>
-            <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">电源</p>
+            <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">{{ t('monitor.power') }}</p>
             <p class="text-slate-800 dark:text-white font-bold text-base sm:text-lg md:text-xl">{{ systemInfo?.power_status || '-' }}</p>
           </div>
         </div>
@@ -511,7 +530,7 @@ async function handleClearCache() {
             <div class="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 mx-auto mb-1.5 sm:mb-2 md:mb-3 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
               <i class="fas fa-heart-pulse text-white text-sm sm:text-base md:text-xl"></i>
             </div>
-            <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">电池健康</p>
+            <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">{{ t('monitor.batteryHealth') }}</p>
             <p class="text-slate-800 dark:text-white font-bold text-base sm:text-lg md:text-xl">{{ systemInfo?.battery_health || '-' }}</p>
           </div>
         </div>
@@ -522,7 +541,7 @@ async function handleClearCache() {
             <div class="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 mx-auto mb-1.5 sm:mb-2 md:mb-3 rounded-xl sm:rounded-2xl bg-gradient-to-br from-purple-500 to-pink-400 flex items-center justify-center shadow-lg shadow-purple-500/30">
               <i class="fas fa-battery-three-quarters text-white text-sm sm:text-base md:text-xl"></i>
             </div>
-            <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">电池容量</p>
+            <p class="text-slate-600 dark:text-white/50 text-[10px] sm:text-xs mb-0.5">{{ t('monitor.batteryCapacity') }}</p>
             <p class="text-slate-800 dark:text-white font-bold text-base sm:text-lg md:text-xl">{{ systemInfo?.battery_capacity || '-' }}</p>
           </div>
         </div>
@@ -536,7 +555,7 @@ async function handleClearCache() {
         <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
           <i class="fas fa-info-circle text-white"></i>
         </div>
-        <h3 class="text-slate-800 dark:text-white font-bold">系统详情</h3>
+        <h3 class="text-slate-800 dark:text-white font-bold">{{ t('monitor.systemDetails') }}</h3>
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -546,7 +565,7 @@ async function handleClearCache() {
               <i class="fas fa-desktop text-white"></i>
             </div>
             <div>
-              <p class="text-slate-600 dark:text-white/50 text-xs">系统名称</p>
+              <p class="text-slate-600 dark:text-white/50 text-xs">{{ t('monitor.systemName') }}</p>
               <p class="text-slate-800 dark:text-white font-medium">{{ systemInfo?.sysname || 'N/A' }}</p>
             </div>
           </div>
@@ -558,7 +577,7 @@ async function handleClearCache() {
               <i class="fas fa-code-branch text-white"></i>
             </div>
             <div>
-              <p class="text-slate-600 dark:text-white/50 text-xs">内核版本</p>
+              <p class="text-slate-600 dark:text-white/50 text-xs">{{ t('monitor.kernelVersion') }}</p>
               <p class="text-slate-800 dark:text-white font-medium text-sm">{{ systemInfo?.release || 'N/A' }}</p>
             </div>
           </div>
@@ -570,7 +589,7 @@ async function handleClearCache() {
               <i class="fab fa-qq text-white"></i>
             </div>
             <div>
-              <p class="text-slate-600 dark:text-white/50 text-xs">官方Q群</p>
+              <p class="text-slate-600 dark:text-white/50 text-xs">{{ t('monitor.qqGroup') }}</p>
               <p class="text-slate-800 dark:text-white font-mono text-sm">1029148488</p>
             </div>
           </div>

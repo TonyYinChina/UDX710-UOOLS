@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const iframeRef = ref(null)
 const isFullscreen = ref(false)
 const loading = ref(true)
@@ -63,20 +65,20 @@ function openInNewTab() {
           </div>
           <h3 class="text-slate-900 dark:text-white font-semibold flex items-center text-sm md:text-base">
             <i class="fas fa-terminal text-slate-600 dark:text-slate-400 mr-1.5 md:mr-2"></i>
-            Web终端
+            {{ $t('terminal.title') }}
           </h3>
-          <span class="text-xs text-slate-400 dark:text-white/40 font-mono hidden sm:inline">ttyd @ :7681</span>
+          <span class="text-xs text-slate-400 dark:text-white/40 font-mono hidden sm:inline">{{ $t('terminal.subtitle') }}</span>
         </div>
         <div class="flex items-center space-x-1.5 md:space-x-2">
           <!-- 加载指示器 -->
           <span v-if="loading" class="text-xs text-slate-500 dark:text-white/50 items-center hidden sm:flex">
-            <i class="fas fa-spinner animate-spin mr-1"></i>加载中...
+            <i class="fas fa-spinner animate-spin mr-1"></i>{{ $t('terminal.loading') }}
           </span>
           <!-- 新窗口打开 -->
           <button 
             @click="openInNewTab"
             class="p-1.5 md:p-2 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 transition-colors"
-            title="在新标签页打开"
+            :title="$t('terminal.openNewTab')"
           >
             <i class="fas fa-external-link-alt text-slate-600 dark:text-white/60 text-xs md:text-sm"></i>
           </button>
@@ -84,7 +86,7 @@ function openInNewTab() {
           <button 
             @click="refreshTerminal"
             class="p-1.5 md:p-2 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 transition-colors"
-            title="刷新终端"
+            :title="$t('terminal.refresh')"
           >
             <i class="fas fa-sync-alt text-slate-600 dark:text-white/60 text-xs md:text-sm" :class="{ 'animate-spin': loading }"></i>
           </button>
@@ -92,7 +94,7 @@ function openInNewTab() {
           <button 
             @click="toggleFullscreen"
             class="p-1.5 md:p-2 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 transition-colors"
-            :title="isFullscreen ? '退出全屏' : '全屏显示'"
+            :title="isFullscreen ? $t('terminal.exitFullscreen') : $t('terminal.fullscreen')"
           >
             <i :class="isFullscreen ? 'fas fa-compress' : 'fas fa-expand'" class="text-slate-600 dark:text-white/60 text-xs md:text-sm"></i>
           </button>
@@ -124,12 +126,12 @@ function openInNewTab() {
     <!-- 使用说明 -->
     <div v-if="!isFullscreen" class="rounded-2xl bg-white/95 dark:bg-white/5 backdrop-blur border border-slate-200/60 dark:border-white/10 p-4 shadow-lg shadow-slate-200/40 dark:shadow-black/20">
       <h4 class="text-slate-700 dark:text-white/80 font-medium mb-2 flex items-center">
-        <i class="fas fa-info-circle text-blue-500 mr-2"></i>使用说明
+        <i class="fas fa-info-circle text-blue-500 mr-2"></i>{{ $t('terminal.instructions') }}
       </h4>
       <ul class="text-sm text-slate-500 dark:text-white/50 space-y-1">
-        <li>• 此终端通过 ttyd 服务提供，端口 7681</li>
-        <li>• 支持完整的 Shell 命令操作</li>
-        <li>• 点击右上角按钮可刷新、全屏或在新窗口打开</li>
+        <li>• {{ $t('terminal.tip1') }}</li>
+        <li>• {{ $t('terminal.tip2') }}</li>
+        <li>• {{ $t('terminal.tip3') }}</li>
       </ul>
     </div>
   </div>

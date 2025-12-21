@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getApnList, setApnConfig } from '../composables/useApi'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
+const { t } = useI18n()
 const { success, error } = useToast()
 const { confirm } = useConfirm()
 
@@ -22,25 +24,25 @@ const form = ref({
 })
 
 // 协议选项
-const protocolOptions = [
-  { value: 'ip', label: 'IPv4' },
-  { value: 'ipv6', label: 'IPv6' },
-  { value: 'dual', label: 'IPv4/IPv6 双栈' }
-]
+const protocolOptions = computed(() => [
+  { value: 'ip', label: t('apn.ipv4') },
+  { value: 'ipv6', label: t('apn.ipv6') },
+  { value: 'dual', label: t('apn.dualStack') }
+])
 
 // 认证方式选项
-const authOptions = [
-  { value: 'none', label: '无认证' },
+const authOptions = computed(() => [
+  { value: 'none', label: t('apn.noAuth') },
   { value: 'pap', label: 'PAP' },
   { value: 'chap', label: 'CHAP' }
-]
+])
 
 // 常用运营商配置
-const presets = [
-  { name: '中国移动', apn: 'cmnet', icon: 'mobile-alt', color: 'from-blue-500 to-cyan-500' },
-  { name: '中国联通', apn: '3gnet', icon: 'signal', color: 'from-red-500 to-orange-500' },
-  { name: '中国电信', apn: 'ctnet', icon: 'broadcast-tower', color: 'from-green-500 to-emerald-500' }
-]
+const presets = computed(() => [
+  { name: t('apn.chinaMobile'), apn: 'cmnet', icon: 'mobile-alt', color: 'from-blue-500 to-cyan-500' },
+  { name: t('apn.chinaUnicom'), apn: '3gnet', icon: 'signal', color: 'from-red-500 to-orange-500' },
+  { name: t('apn.chinaTelecom'), apn: 'ctnet', icon: 'broadcast-tower', color: 'from-green-500 to-emerald-500' }
+])
 
 // 当前激活的 context
 const activeContext = computed(() => contexts.value.find(c => c.active))
@@ -59,7 +61,7 @@ async function fetchApnList() {
       }
     }
   } catch (err) {
-    error('获取APN配置失败: ' + err.message)
+    error(t('apn.getFailed') + ': ' + err.message)
   } finally {
     loading.value = false
   }
@@ -89,13 +91,13 @@ function applyPreset(preset) {
 // 保存配置
 async function saveConfig() {
   if (!selectedContext.value) {
-    error('请先选择一个APN配置')
+    error(t('apn.selectFirst'))
     return
   }
 
   const confirmed = await confirm({
-    title: '保存APN配置',
-    message: `确定要将APN修改为 "${form.value.apn}" 吗？修改后可能需要重新连接网络。`
+    title: t('apn.saveApn'),
+    message: t('apn.confirmSave', { apn: form.value.apn })
   })
   if (!confirmed) return
 
@@ -110,13 +112,13 @@ async function saveConfig() {
       auth_method: form.value.auth_method
     })
     if (res.status === 'ok') {
-      success('APN配置已保存')
+      success(t('apn.apnSaved'))
       await fetchApnList()
     } else {
-      throw new Error(res.message || '保存失败')
+      throw new Error(res.message || t('apn.saveFailed'))
     }
   } catch (err) {
-    error('保存失败: ' + err.message)
+    error(t('apn.saveFailed') + ': ' + err.message)
   } finally {
     saving.value = false
   }
@@ -138,16 +140,16 @@ onMounted(() => {
             <font-awesome-icon icon="globe" class="text-white text-2xl" />
           </div>
           <div>
-            <h2 class="text-slate-800 dark:text-white font-bold text-xl">APN配置</h2>
-            <p class="text-slate-600 dark:text-white/50 text-sm mt-1">配置移动网络接入点</p>
+            <h2 class="text-slate-800 dark:text-white font-bold text-xl">{{ t('apn.title') }}</h2>
+            <p class="text-slate-600 dark:text-white/50 text-sm mt-1">{{ t('apn.subtitle') }}</p>
           </div>
         </div>
         <!-- 当前状态 -->
         <div v-if="activeContext" class="flex items-center space-x-3 px-4 py-2 rounded-xl bg-white/60 dark:bg-white/10 border border-slate-200/60 dark:border-white/10">
           <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
           <div class="text-sm">
-            <span class="text-slate-500 dark:text-white/50">当前APN：</span>
-            <span class="font-semibold text-slate-800 dark:text-white">{{ activeContext.apn || '未配置' }}</span>
+            <span class="text-slate-500 dark:text-white/50">{{ t('apn.currentApn') }}：</span>
+            <span class="font-semibold text-slate-800 dark:text-white">{{ activeContext.apn || t('apn.notConfigured') }}</span>
           </div>
         </div>
       </div>
@@ -180,12 +182,12 @@ onMounted(() => {
         <!-- APN 名称 -->
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-white/80 mb-2">
-            <font-awesome-icon icon="tag" class="mr-2 text-teal-500" />APN 名称
+            <font-awesome-icon icon="tag" class="mr-2 text-teal-500" />{{ t('apn.apnName') }}
           </label>
           <input
             v-model="form.apn"
             type="text"
-            placeholder="例如: cmnet, 3gnet, ctnet"
+            :placeholder="t('apn.apnPlaceholder')"
             class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all"
           />
         </div>
@@ -193,7 +195,7 @@ onMounted(() => {
         <!-- 协议 -->
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-white/80 mb-2">
-            <font-awesome-icon icon="network-wired" class="mr-2 text-teal-500" />协议类型
+            <font-awesome-icon icon="network-wired" class="mr-2 text-teal-500" />{{ t('apn.protocol') }}
           </label>
           <div class="grid grid-cols-3 gap-3">
             <button
@@ -216,23 +218,23 @@ onMounted(() => {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-white/80 mb-2">
-              <font-awesome-icon icon="user" class="mr-2 text-teal-500" />用户名
+              <font-awesome-icon icon="user" class="mr-2 text-teal-500" />{{ t('apn.username') }}
             </label>
             <input
               v-model="form.username"
               type="text"
-              placeholder="可选"
+              :placeholder="t('apn.optional')"
               class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all"
             />
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-white/80 mb-2">
-              <font-awesome-icon icon="lock" class="mr-2 text-teal-500" />密码
+              <font-awesome-icon icon="lock" class="mr-2 text-teal-500" />{{ t('apn.password') }}
             </label>
             <input
               v-model="form.password"
               type="password"
-              placeholder="可选"
+              :placeholder="t('apn.optional')"
               class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all"
             />
           </div>
@@ -241,7 +243,7 @@ onMounted(() => {
         <!-- 认证方式 -->
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-white/80 mb-2">
-            <font-awesome-icon icon="shield-alt" class="mr-2 text-teal-500" />认证方式
+            <font-awesome-icon icon="shield-alt" class="mr-2 text-teal-500" />{{ t('apn.authType') }}
           </label>
           <div class="grid grid-cols-3 gap-3">
             <button
@@ -268,7 +270,7 @@ onMounted(() => {
         >
           <font-awesome-icon v-if="saving" icon="spinner" spin />
           <font-awesome-icon v-else icon="save" />
-          <span>{{ saving ? '保存中...' : '保存配置' }}</span>
+          <span>{{ saving ? t('apn.saving') : t('apn.saveConfig') }}</span>
         </button>
       </div>
     </div>
@@ -278,11 +280,11 @@ onMounted(() => {
       <div class="flex items-start space-x-3">
         <font-awesome-icon icon="info-circle" class="text-blue-500 mt-0.5" />
         <div class="text-sm text-blue-800 dark:text-blue-200">
-          <p class="font-medium mb-1">使用说明</p>
+          <p class="font-medium mb-1">{{ t('apn.tips') }}</p>
           <ul class="list-disc list-inside space-y-1 text-blue-700 dark:text-blue-300/80">
-            <li>点击运营商快捷按钮可快速填充常用APN配置</li>
-            <li>大多数情况下只需填写APN名称，用户名和密码可留空</li>
-            <li>修改配置后可能需要重新连接网络才能生效</li>
+            <li>{{ t('apn.tip1') }}</li>
+            <li>{{ t('apn.tip2') }}</li>
+            <li>{{ t('apn.tip3') }}</li>
           </ul>
         </div>
       </div>

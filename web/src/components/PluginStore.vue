@@ -1,10 +1,12 @@
 <script setup>
 import { ref, computed, onMounted, inject, nextTick, createApp, h } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { PluginCard, PluginStatus, PluginBtn } from './plugin'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 import { getPluginList, uploadPlugin, deletePlugin, deleteAllPlugins, executeShell, getScriptList, uploadScript, updateScript, deleteScript, getPluginStorage, setPluginStorage, deletePluginStorage } from '../composables/useApi'
 
+const { t } = useI18n()
 const { success, error, info } = useToast()
 const { confirm } = useConfirm()
 const isDark = inject('isDark', ref(true))
@@ -59,7 +61,7 @@ async function fetchPlugins() {
       plugins.value = res.Data || []
     }
   } catch (e) {
-    error('获取插件列表失败')
+    error(t('plugins.getListFailed'))
   } finally {
     loading.value = false
   }
@@ -68,7 +70,7 @@ async function fetchPlugins() {
 // 上传插件
 async function handleUpload() {
   if (!pluginContent.value.trim()) {
-    error('插件内容不能为空')
+    error(t('plugins.contentEmpty'))
     return
   }
   
@@ -77,16 +79,16 @@ async function handleUpload() {
     const name = pluginName.value.trim() || 'plugin_' + Date.now()
     const res = await uploadPlugin(name, pluginContent.value)
     if (res.Code === 0) {
-      success('插件上传成功')
+      success(t('plugins.uploadSuccess'))
       showUploadModal.value = false
       pluginName.value = ''
       pluginContent.value = ''
       fetchPlugins()
     } else {
-      error(res.Error || '上传失败')
+      error(res.Error || t('plugins.uploadFailed'))
     }
   } catch (e) {
-    error('上传失败: ' + e.message)
+    error(t('plugins.uploadFailed') + ': ' + e.message)
   } finally {
     uploading.value = false
   }
@@ -96,8 +98,8 @@ async function handleUpload() {
 // 删除插件
 async function handleDelete(plugin) {
   const confirmed = await confirm({
-    title: '删除插件',
-    message: `确定要删除插件 "${plugin.name}" 吗？`,
+    title: t('plugins.deletePlugin'),
+    message: t('plugins.confirmDeletePlugin', { name: plugin.name }),
     danger: true
   })
   if (!confirmed) return
@@ -105,13 +107,13 @@ async function handleDelete(plugin) {
   try {
     const res = await deletePlugin(plugin.filename)
     if (res.Code === 0) {
-      success('插件已删除')
+      success(t('plugins.deleted'))
       fetchPlugins()
     } else {
-      error(res.Error || '删除失败')
+      error(res.Error || t('plugins.deleteFailed'))
     }
   } catch (e) {
-    error('删除失败')
+    error(t('plugins.deleteFailed'))
   }
 }
 
@@ -125,7 +127,7 @@ function editPlugin(plugin) {
 // 保存插件编辑
 async function savePluginEdit() {
   if (!editingPlugin.value || !editPluginContent.value.trim()) {
-    error('插件内容不能为空')
+    error(t('plugins.contentEmpty'))
     return
   }
   try {
@@ -134,16 +136,16 @@ async function savePluginEdit() {
     const name = editingPlugin.value.filename.replace('.js', '')
     const res = await uploadPlugin(name, editPluginContent.value)
     if (res.Code === 0) {
-      success('插件已保存')
+      success(t('plugins.saved'))
       showEditPluginModal.value = false
       editingPlugin.value = null
       editPluginContent.value = ''
       fetchPlugins()
     } else {
-      error(res.Error || '保存失败')
+      error(res.Error || t('plugins.saveFailed'))
     }
   } catch (e) {
-    error('保存失败: ' + e.message)
+    error(t('plugins.saveFailed') + ': ' + e.message)
   }
 }
 
@@ -158,13 +160,13 @@ function handleExport(plugin) {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
-  success('插件已导出')
+  success(t('plugins.exported'))
 }
 
 // 导出全部插件（打包为JSON）
 function handleExportAll() {
   if (plugins.value.length === 0) {
-    error('没有可导出的插件')
+    error(t('plugins.noPluginsToExport'))
     return
   }
   const exportData = {
@@ -184,7 +186,7 @@ function handleExportAll() {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
-  success(`已导出 ${plugins.value.length} 个插件`)
+  success(t('plugins.exportedCount', { count: plugins.value.length }))
 }
 
 // 导入全部插件
@@ -197,7 +199,7 @@ async function handleImportAll(e) {
     const data = JSON.parse(text)
     
     if (!data.plugins || !Array.isArray(data.plugins)) {
-      error('无效的插件包格式')
+      error(t('plugins.invalidFormat'))
       return
     }
     
@@ -210,10 +212,10 @@ async function handleImportAll(e) {
       }
     }
     
-    success(`成功导入 ${successCount}/${data.plugins.length} 个插件`)
+    success(t('plugins.importedCount', { success: successCount, total: data.plugins.length }))
     fetchPlugins()
   } catch (e) {
-    error('导入失败: ' + e.message)
+    error(t('plugins.importFailed') + ': ' + e.message)
   }
   e.target.value = ''
 }
@@ -229,7 +231,7 @@ async function fetchScripts() {
       scripts.value = res.Data || []
     }
   } catch (e) {
-    error('获取脚本列表失败')
+    error(t('plugins.getScriptsFailed'))
   } finally {
     scriptsLoading.value = false
   }
@@ -254,54 +256,54 @@ async function saveScriptEdit() {
   try {
     const res = await updateScript(editingScript.value.name, editingScript.value.content)
     if (res.Code === 0) {
-      success('脚本已保存')
+      success(t('plugins.scriptSaved'))
       editingScript.value = null
       fetchScripts()
     } else {
-      error(res.Error || '保存失败')
+      error(res.Error || t('plugins.saveFailed'))
     }
   } catch (e) {
-    error('保存失败: ' + e.message)
+    error(t('plugins.saveFailed') + ': ' + e.message)
   }
 }
 
 // 删除脚本（使用弹窗内部confirm）
 async function handleDeleteScript(script) {
-  const confirmed = await showScriptConfirm('删除脚本', `确定要删除脚本 "${script.name}" 吗？`, true)
+  const confirmed = await showScriptConfirm(t('plugins.deleteScript'), t('plugins.confirmDeleteScript', { name: script.name }), true)
   if (!confirmed) return
   try {
     const res = await deleteScript(script.name)
     if (res.Code === 0) {
-      success('脚本已删除')
+      success(t('plugins.scriptDeleted'))
       fetchScripts()
     } else {
-      error(res.Error || '删除失败')
+      error(res.Error || t('plugins.deleteFailed'))
     }
   } catch (e) {
-    error('删除失败')
+    error(t('plugins.deleteFailed'))
   }
 }
 
 // 上传新脚本
 async function handleUploadScript() {
   if (!newScriptName.value.trim() || !newScriptContent.value.trim()) {
-    error('脚本名称和内容不能为空')
+    error(t('plugins.scriptNameContentEmpty'))
     return
   }
   try {
     const name = newScriptName.value.trim().endsWith('.sh') ? newScriptName.value.trim() : newScriptName.value.trim() + '.sh'
     const res = await uploadScript(name, newScriptContent.value)
     if (res.Code === 0) {
-      success('脚本上传成功')
+      success(t('plugins.scriptUploadSuccess'))
       newScriptName.value = ''
       newScriptContent.value = ''
       showNewScriptForm.value = false
       fetchScripts()
     } else {
-      error(res.Error || '上传失败')
+      error(res.Error || t('plugins.uploadFailed'))
     }
   } catch (e) {
-    error('上传失败: ' + e.message)
+    error(t('plugins.uploadFailed') + ': ' + e.message)
   }
 }
 
@@ -316,13 +318,13 @@ function handleExportScript(script) {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
-  success('脚本已导出')
+  success(t('plugins.scriptExported'))
 }
 
 // 导出全部脚本（打包为JSON）
 function handleExportAllScripts() {
   if (scripts.value.length === 0) {
-    error('没有可导出的脚本')
+    error(t('plugins.noScriptsToExport'))
     return
   }
   const exportData = {
@@ -343,7 +345,7 @@ function handleExportAllScripts() {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
-  success(`已导出 ${scripts.value.length} 个脚本`)
+  success(t('plugins.scriptsExportedCount', { count: scripts.value.length }))
 }
 
 // 导入脚本（支持.sh和.json）
@@ -358,7 +360,7 @@ async function handleImportScripts(e) {
       // JSON批量导入
       const data = JSON.parse(text)
       if (!data.scripts || !Array.isArray(data.scripts)) {
-        error('无效的脚本包格式')
+        error(t('plugins.invalidScriptFormat'))
         return
       }
       let successCount = 0
@@ -368,20 +370,20 @@ async function handleImportScripts(e) {
           if (res.Code === 0) successCount++
         }
       }
-      success(`成功导入 ${successCount}/${data.scripts.length} 个脚本`)
+      success(t('plugins.scriptsImportedCount', { success: successCount, total: data.scripts.length }))
     } else {
       // 单个.sh文件导入
       const name = file.name.endsWith('.sh') ? file.name : file.name + '.sh'
       const res = await uploadScript(name, text)
       if (res.Code === 0) {
-        success('脚本导入成功')
+        success(t('plugins.scriptImportSuccess'))
       } else {
-        error(res.Error || '导入失败')
+        error(res.Error || t('plugins.importFailed'))
       }
     }
     fetchScripts()
   } catch (e) {
-    error('导入失败: ' + e.message)
+    error(t('plugins.importFailed') + ': ' + e.message)
   }
   e.target.value = ''
 }
@@ -389,8 +391,8 @@ async function handleImportScripts(e) {
 // 删除所有插件
 async function handleDeleteAll() {
   const confirmed = await confirm({
-    title: '清空插件',
-    message: '确定要删除所有插件吗？此操作不可恢复！',
+    title: t('plugins.clearPlugins'),
+    message: t('plugins.confirmClearAll'),
     danger: true
   })
   if (!confirmed) return
@@ -398,13 +400,13 @@ async function handleDeleteAll() {
   try {
     const res = await deleteAllPlugins()
     if (res.Code === 0) {
-      success('所有插件已删除')
+      success(t('plugins.allDeleted'))
       fetchPlugins()
     } else {
-      error(res.Error || '删除失败')
+      error(res.Error || t('plugins.deleteFailed'))
     }
   } catch (e) {
-    error('删除失败')
+    error(t('plugins.deleteFailed'))
   }
 }
 
@@ -420,7 +422,7 @@ function handleDrop(e) {
     }
     reader.readAsText(file)
   } else {
-    error('请上传.js格式的插件文件')
+    error(t('plugins.selectJsFile'))
   }
 }
 
@@ -849,8 +851,8 @@ async function runPlugin(plugin) {
       }
     }
   } catch (e) {
-    pluginOutput.value = '插件执行错误: ' + e.message
-    error('插件执行错误')
+    pluginOutput.value = t('plugins.executeError') + ': ' + e.message
+    error(t('plugins.executeError'))
   }
 }
 
@@ -923,8 +925,8 @@ onMounted(() => {
             <font-awesome-icon icon="puzzle-piece" class="text-white text-lg sm:text-xl" />
           </div>
           <div>
-            <h3 class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">插件商城</h3>
-            <p class="text-slate-500 dark:text-white/50 text-xs sm:text-sm">已安装 {{ plugins.length }} 个插件</p>
+            <h3 class="text-slate-900 dark:text-white font-semibold text-sm sm:text-base">{{ $t('plugins.title') }}</h3>
+            <p class="text-slate-500 dark:text-white/50 text-xs sm:text-sm">{{ $t('plugins.installedCount', { count: plugins.length }) }}</p>
           </div>
         </div>
         <!-- 操作按钮组 - 美化布局 -->
@@ -934,26 +936,26 @@ onMounted(() => {
             <button @click="showUploadModal = true"
               class="px-3 py-1.5 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-xs font-medium transition-all flex items-center space-x-1.5">
               <font-awesome-icon icon="plus" class="text-xs" />
-              <span>插件</span>
+              <span>{{ $t('plugins.plugin') }}</span>
             </button>
             <button @click="openScriptManager"
               class="px-3 py-1.5 hover:bg-white/50 dark:hover:bg-white/10 text-slate-600 dark:text-white/70 rounded-lg text-xs font-medium transition-all flex items-center space-x-1.5 ml-1">
               <font-awesome-icon icon="terminal" class="text-xs" />
-              <span>脚本</span>
+              <span>{{ $t('plugins.script') }}</span>
             </button>
           </div>
           <!-- 导入导出 -->
           <div class="flex items-center bg-slate-100 dark:bg-white/5 rounded-xl p-1">
             <button @click="handleExportAll" v-if="plugins.length > 0"
-              class="px-2.5 py-1.5 hover:bg-blue-500/20 text-blue-500 rounded-lg text-xs font-medium transition-all flex items-center space-x-1" title="导出全部">
+              class="px-2.5 py-1.5 hover:bg-blue-500/20 text-blue-500 rounded-lg text-xs font-medium transition-all flex items-center space-x-1" :title="$t('plugins.exportAll')">
               <font-awesome-icon icon="file-export" class="text-xs" />
             </button>
-            <label class="px-2.5 py-1.5 hover:bg-cyan-500/20 text-cyan-500 rounded-lg text-xs font-medium transition-all flex items-center space-x-1 cursor-pointer" title="导入全部">
+            <label class="px-2.5 py-1.5 hover:bg-cyan-500/20 text-cyan-500 rounded-lg text-xs font-medium transition-all flex items-center space-x-1 cursor-pointer" :title="$t('plugins.importAll')">
               <font-awesome-icon icon="file-import" class="text-xs" />
               <input type="file" accept=".json" @change="handleImportAll" class="hidden">
             </label>
             <button @click="handleDeleteAll" v-if="plugins.length > 0"
-              class="px-2.5 py-1.5 hover:bg-red-500/20 text-red-500 rounded-lg text-xs font-medium transition-all" title="清空插件">
+              class="px-2.5 py-1.5 hover:bg-red-500/20 text-red-500 rounded-lg text-xs font-medium transition-all" :title="$t('plugins.clearPlugins')">
               <font-awesome-icon icon="trash-alt" class="text-xs" />
             </button>
           </div>
@@ -975,15 +977,15 @@ onMounted(() => {
             <font-awesome-icon :icon="(plugin.icon || 'fa-puzzle-piece').replace('fa-', '')" class="text-white text-xl" />
           </div>
           <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button @click="handleExport(plugin)" title="导出插件"
+            <button @click="handleExport(plugin)" :title="$t('plugins.exportPlugin')"
               class="w-8 h-8 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 flex items-center justify-center transition-all">
               <font-awesome-icon icon="download" class="text-sm" />
             </button>
-            <button @click="editPlugin(plugin)" title="编辑插件"
+            <button @click="editPlugin(plugin)" :title="$t('plugins.editPlugin')"
               class="w-8 h-8 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 flex items-center justify-center transition-all">
               <font-awesome-icon icon="edit" class="text-sm" />
             </button>
-            <button @click="handleDelete(plugin)" title="删除插件"
+            <button @click="handleDelete(plugin)" :title="$t('plugins.deletePlugin')"
               class="w-8 h-8 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 flex items-center justify-center transition-all">
               <font-awesome-icon icon="trash-alt" class="text-sm" />
             </button>
@@ -991,11 +993,11 @@ onMounted(() => {
         </div>
         <h4 class="text-slate-900 dark:text-white font-semibold text-base mb-1">{{ plugin.name }}</h4>
         <p class="text-slate-500 dark:text-white/50 text-xs mb-1">v{{ plugin.version }} · {{ plugin.author }}</p>
-        <p class="text-slate-600 dark:text-white/60 text-sm mb-4 line-clamp-2">{{ plugin.description || '暂无描述' }}</p>
+        <p class="text-slate-600 dark:text-white/60 text-sm mb-4 line-clamp-2">{{ plugin.description || $t('plugins.noDescription') }}</p>
         <button @click="runPlugin(plugin)"
           class="w-full py-2.5 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center space-x-2">
           <font-awesome-icon icon="play" />
-          <span>运行</span>
+          <span>{{ $t('plugins.run') }}</span>
         </button>
       </div>
 
@@ -1005,8 +1007,8 @@ onMounted(() => {
         <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-violet-500/10 flex items-center justify-center">
           <font-awesome-icon icon="puzzle-piece" class="text-violet-500 text-2xl" />
         </div>
-        <h4 class="text-slate-900 dark:text-white font-semibold mb-2">暂无插件</h4>
-        <p class="text-slate-500 dark:text-white/50 text-sm mb-4">点击上方"上传插件"按钮添加您的第一个插件</p>
+        <h4 class="text-slate-900 dark:text-white font-semibold mb-2">{{ $t('plugins.noPlugins') }}</h4>
+        <p class="text-slate-500 dark:text-white/50 text-sm mb-4">{{ $t('plugins.clickUploadTip') }}</p>
       </div>
     </div>
 
@@ -1019,7 +1021,7 @@ onMounted(() => {
           <div class="relative w-full max-w-2xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl overflow-hidden">
             <div class="p-4 sm:p-6 border-b border-slate-200 dark:border-white/10">
               <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-slate-900 dark:text-white">上传插件</h3>
+                <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ $t('plugins.uploadPlugin') }}</h3>
                 <button @click="showUploadModal = false" class="w-8 h-8 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 flex items-center justify-center">
                   <font-awesome-icon icon="times" class="text-slate-600 dark:text-white/60" />
                 </button>
@@ -1033,26 +1035,26 @@ onMounted(() => {
                 <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-violet-500/10 flex items-center justify-center">
                   <font-awesome-icon icon="cloud-upload-alt" class="text-violet-500 text-xl" />
                 </div>
-                <p class="text-slate-700 dark:text-white/80 font-medium text-sm mb-1">{{ isDragging ? '释放文件' : '点击或拖拽上传' }}</p>
-                <p class="text-slate-500 dark:text-white/50 text-xs">支持 .js 格式插件文件</p>
+                <p class="text-slate-700 dark:text-white/80 font-medium text-sm mb-1">{{ isDragging ? $t('plugins.releaseFile') : $t('plugins.clickOrDrag') }}</p>
+                <p class="text-slate-500 dark:text-white/50 text-xs">{{ $t('plugins.supportJs') }}</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-white/80 mb-2">插件名称</label>
-                <input v-model="pluginName" type="text" placeholder="可选，留空自动生成"
+                <label class="block text-sm font-medium text-slate-700 dark:text-white/80 mb-2">{{ $t('plugins.pluginName') }}</label>
+                <input v-model="pluginName" type="text" :placeholder="$t('plugins.pluginNamePlaceholder')"
                   class="w-full px-4 py-3 bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/20 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/30 focus:border-violet-400 focus:ring-2 focus:ring-violet-400/20 transition-all">
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-white/80 mb-2">插件代码</label>
-                <textarea v-model="pluginContent" rows="10" placeholder="粘贴插件代码或上传文件..."
+                <label class="block text-sm font-medium text-slate-700 dark:text-white/80 mb-2">{{ $t('plugins.pluginCode') }}</label>
+                <textarea v-model="pluginContent" rows="10" :placeholder="$t('plugins.pluginCodePlaceholder')"
                   class="w-full px-4 py-3 bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/20 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/30 focus:border-violet-400 focus:ring-2 focus:ring-violet-400/20 transition-all font-mono text-sm resize-none"></textarea>
               </div>
             </div>
             <div class="p-4 sm:p-6 border-t border-slate-200 dark:border-white/10 flex justify-end space-x-3">
-              <button @click="showUploadModal = false" class="px-4 py-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-white/80 rounded-xl text-sm font-medium transition-all">取消</button>
+              <button @click="showUploadModal = false" class="px-4 py-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-white/80 rounded-xl text-sm font-medium transition-all">{{ $t('common.cancel') }}</button>
               <button @click="handleUpload" :disabled="uploading"
                 class="px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-xl text-sm font-medium transition-all disabled:opacity-50 flex items-center">
                 <font-awesome-icon :icon="uploading ? 'spinner' : 'upload'" :class="uploading ? 'animate-spin' : ''" class="mr-2" />
-                {{ uploading ? '上传中...' : '上传' }}
+                {{ uploading ? $t('plugins.uploading') : $t('common.upload') }}
               </button>
             </div>
           </div>
@@ -1072,7 +1074,7 @@ onMounted(() => {
                   <font-awesome-icon icon="edit" class="text-white" />
                 </div>
                 <div>
-                  <h3 class="text-lg font-semibold text-slate-900 dark:text-white">编辑插件</h3>
+                  <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ $t('plugins.editPlugin') }}</h3>
                   <p class="text-xs text-slate-500 dark:text-white/50">{{ editingPlugin?.name }}</p>
                 </div>
               </div>
@@ -1085,10 +1087,10 @@ onMounted(() => {
                 class="w-full h-full min-h-[400px] px-4 py-3 bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/20 rounded-xl text-slate-900 dark:text-white font-mono text-sm resize-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"></textarea>
             </div>
             <div class="p-4 border-t border-slate-200 dark:border-white/10 flex justify-end space-x-3 flex-shrink-0">
-              <button @click="showEditPluginModal = false" class="px-4 py-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-white/80 rounded-xl text-sm font-medium transition-all">取消</button>
+              <button @click="showEditPluginModal = false" class="px-4 py-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-white/80 rounded-xl text-sm font-medium transition-all">{{ $t('common.cancel') }}</button>
               <button @click="savePluginEdit" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium transition-all flex items-center">
                 <font-awesome-icon icon="save" class="mr-2" />
-                保存
+                {{ $t('common.save') }}
               </button>
             </div>
           </div>
@@ -1109,23 +1111,23 @@ onMounted(() => {
                   <font-awesome-icon icon="terminal" class="text-white" />
                 </div>
                 <div>
-                  <h3 class="text-lg font-semibold text-slate-900 dark:text-white">脚本管理</h3>
-                  <p class="text-xs text-slate-500 dark:text-white/50">{{ scripts.length }} 个脚本</p>
+                  <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ $t('plugins.scriptManager') }}</h3>
+                  <p class="text-xs text-slate-500 dark:text-white/50">{{ $t('plugins.scriptsCount', { count: scripts.length }) }}</p>
                 </div>
               </div>
               <div class="flex items-center space-x-2">
                 <button @click="showNewScriptForm = !showNewScriptForm"
                   class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-medium transition-all flex items-center space-x-1">
                   <font-awesome-icon icon="plus" class="text-xs" />
-                  <span>新建</span>
+                  <span>{{ $t('plugins.new') }}</span>
                 </button>
                 <!-- 导出/导入按钮组 -->
                 <div class="flex items-center bg-slate-100 dark:bg-white/5 rounded-lg p-0.5">
-                  <button @click="handleExportAllScripts" v-if="scripts.length > 0" title="导出全部"
+                  <button @click="handleExportAllScripts" v-if="scripts.length > 0" :title="$t('plugins.exportAll')"
                     class="w-7 h-7 hover:bg-blue-500/20 text-blue-500 rounded flex items-center justify-center transition-all">
                     <font-awesome-icon icon="file-export" class="text-xs" />
                   </button>
-                  <label class="w-7 h-7 hover:bg-cyan-500/20 text-cyan-500 rounded flex items-center justify-center cursor-pointer transition-all" title="导入脚本">
+                  <label class="w-7 h-7 hover:bg-cyan-500/20 text-cyan-500 rounded flex items-center justify-center cursor-pointer transition-all" :title="$t('plugins.importScript')">
                     <font-awesome-icon icon="file-import" class="text-xs" />
                     <input type="file" accept=".sh,.json" @change="handleImportScripts" class="hidden">
                   </label>
@@ -1143,10 +1145,10 @@ onMounted(() => {
             <Transition name="slide">
               <div v-if="showNewScriptForm" class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-800/30 flex-shrink-0">
                 <div class="flex items-start gap-3">
-                  <input v-model="newScriptName" type="text" placeholder="脚本名称 (如: backup.sh)"
+                  <input v-model="newScriptName" type="text" :placeholder="$t('plugins.scriptNamePlaceholder')"
                     class="flex-1 px-3 py-2 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/20 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400">
-                  <button @click="handleUploadScript" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium">保存</button>
-                  <button @click="showNewScriptForm = false" class="px-3 py-2 bg-slate-200 dark:bg-white/10 rounded-lg text-sm">取消</button>
+                  <button @click="handleUploadScript" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium">{{ $t('common.save') }}</button>
+                  <button @click="showNewScriptForm = false" class="px-3 py-2 bg-slate-200 dark:bg-white/10 rounded-lg text-sm">{{ $t('common.cancel') }}</button>
                 </div>
                 <textarea v-model="newScriptContent" rows="4" placeholder="#!/bin/bash&#10;echo 'Hello World'"
                   class="w-full mt-2 px-3 py-2 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/20 rounded-lg text-sm text-slate-900 dark:text-white font-mono placeholder-slate-400 resize-none"></textarea>
@@ -1158,15 +1160,15 @@ onMounted(() => {
                 <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center">
                   <font-awesome-icon icon="terminal" class="text-slate-400 dark:text-white/30 text-2xl" />
                 </div>
-                <p class="text-slate-500 dark:text-white/50 text-sm">暂无脚本，点击"新建"添加</p>
+                <p class="text-slate-500 dark:text-white/50 text-sm">{{ $t('plugins.noScripts') }}</p>
               </div>
               <!-- 编辑中的脚本 -->
               <div v-if="editingScript" class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800/30">
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-sm font-medium text-blue-700 dark:text-blue-300">{{ editingScript.name }}</span>
                   <div class="flex items-center space-x-2">
-                    <button @click="saveScriptEdit" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium">保存</button>
-                    <button @click="editingScript = null" class="px-3 py-1 bg-slate-200 dark:bg-white/10 rounded-lg text-xs">取消</button>
+                    <button @click="saveScriptEdit" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium">{{ $t('common.save') }}</button>
+                    <button @click="editingScript = null" class="px-3 py-1 bg-slate-200 dark:bg-white/10 rounded-lg text-xs">{{ $t('common.cancel') }}</button>
                   </div>
                 </div>
                 <textarea v-model="editingScript.content" rows="8"
@@ -1182,19 +1184,19 @@ onMounted(() => {
                     </div>
                     <div>
                       <p class="text-sm font-medium text-slate-900 dark:text-white">{{ script.name }}</p>
-                      <p class="text-xs text-slate-500 dark:text-white/50">{{ script.size }} 字节</p>
+                      <p class="text-xs text-slate-500 dark:text-white/50">{{ script.size }} {{ $t('plugins.bytes') }}</p>
                     </div>
                   </div>
                   <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button @click="handleExportScript(script)" title="导出"
+                    <button @click="handleExportScript(script)" :title="$t('plugins.export')"
                       class="w-7 h-7 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 flex items-center justify-center">
                       <font-awesome-icon icon="download" class="text-xs" />
                     </button>
-                    <button @click="editScript(script)" title="编辑"
+                    <button @click="editScript(script)" :title="$t('common.edit')"
                       class="w-7 h-7 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 flex items-center justify-center">
                       <font-awesome-icon icon="edit" class="text-xs" />
                     </button>
-                    <button @click="handleDeleteScript(script)" title="删除"
+                    <button @click="handleDeleteScript(script)" :title="$t('common.delete')"
                       class="w-7 h-7 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 flex items-center justify-center">
                       <font-awesome-icon icon="trash-alt" class="text-xs" />
                     </button>
@@ -1206,7 +1208,7 @@ onMounted(() => {
             <div class="p-3 bg-slate-50 dark:bg-white/5 border-t border-slate-200 dark:border-white/10 flex-shrink-0">
               <p class="text-xs text-slate-500 dark:text-white/50 text-center">
                 <font-awesome-icon icon="info-circle" class="mr-1" />
-                插件可通过 <code class="bg-slate-200 dark:bg-white/10 px-1 rounded">$api.runScript('脚本名.sh')</code> 调用脚本
+                {{ $t('plugins.scriptApiTip') }}
               </p>
             </div>
           </div>
@@ -1228,8 +1230,8 @@ onMounted(() => {
             </div>
             <p class="text-slate-600 dark:text-white/70 text-sm mb-4">{{ scriptConfirm.message }}</p>
             <div class="flex justify-end space-x-2">
-              <button @click="handleScriptConfirm(false)" class="px-4 py-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-white/80 rounded-lg text-sm font-medium transition-all">取消</button>
-              <button @click="handleScriptConfirm(true)" :class="['px-4 py-2 rounded-lg text-sm font-medium transition-all text-white', scriptConfirm.danger ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600']">确定</button>
+              <button @click="handleScriptConfirm(false)" class="px-4 py-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-white/80 rounded-lg text-sm font-medium transition-all">{{ $t('common.cancel') }}</button>
+              <button @click="handleScriptConfirm(true)" :class="['px-4 py-2 rounded-lg text-sm font-medium transition-all text-white', scriptConfirm.danger ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600']">{{ $t('common.confirm') }}</button>
             </div>
           </div>
         </div>
@@ -1268,8 +1270,8 @@ onMounted(() => {
                   </div>
                   <p class="text-slate-600 dark:text-white/70 text-sm mb-4">{{ pluginConfirm.message }}</p>
                   <div class="flex justify-end space-x-2">
-                    <button @click="handlePluginConfirm(false)" class="px-4 py-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-white/80 rounded-lg text-sm font-medium transition-all">取消</button>
-                    <button @click="handlePluginConfirm(true)" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all">确定</button>
+                    <button @click="handlePluginConfirm(false)" class="px-4 py-2 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-700 dark:text-white/80 rounded-lg text-sm font-medium transition-all">{{ $t('common.cancel') }}</button>
+                    <button @click="handlePluginConfirm(true)" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all">{{ $t('common.confirm') }}</button>
                   </div>
                 </div>
               </div>
@@ -1293,7 +1295,7 @@ onMounted(() => {
               <div v-if="pluginOutput" class="mt-4 p-4 bg-slate-900 dark:bg-black/50 rounded-xl">
                 <div class="flex items-center space-x-2 mb-2">
                   <font-awesome-icon icon="terminal" class="text-green-400 text-sm" />
-                  <span class="text-green-400 text-sm font-medium">输出</span>
+                  <span class="text-green-400 text-sm font-medium">{{ $t('plugins.output') }}</span>
                 </div>
                 <pre class="text-green-300 text-sm font-mono whitespace-pre-wrap">{{ pluginOutput }}</pre>
               </div>

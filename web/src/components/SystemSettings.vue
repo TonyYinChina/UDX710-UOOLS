@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { deviceControl, getRebootConfig, setReboot, clearReboot, getSystemTime, syncSystemTime, useApi } from '../composables/useApi'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
+const { t } = useI18n()
 const { success, error } = useToast()
 const { confirm } = useConfirm()
 const api = useApi()
@@ -18,13 +20,13 @@ const currentTime = ref('')
 const syncingTime = ref(false)
 
 const weekDays = [
-  { value: '1', label: '周一', short: '一' },
-  { value: '2', label: '周二', short: '二' },
-  { value: '3', label: '周三', short: '三' },
-  { value: '4', label: '周四', short: '四' },
-  { value: '5', label: '周五', short: '五' },
-  { value: '6', label: '周六', short: '六' },
-  { value: '0', label: '周日', short: '日' }
+  { value: '1', labelKey: 'settings.mon', short: '一' },
+  { value: '2', labelKey: 'settings.tue', short: '二' },
+  { value: '3', labelKey: 'settings.wed', short: '三' },
+  { value: '4', labelKey: 'settings.thu', short: '四' },
+  { value: '5', labelKey: 'settings.fri', short: '五' },
+  { value: '6', labelKey: 'settings.sat', short: '六' },
+  { value: '0', labelKey: 'settings.sun', short: '日' }
 ]
 
 async function fetchRebootConfig() {
@@ -57,39 +59,39 @@ async function handleSyncTime() {
   try {
     const data = await syncSystemTime()
     if (data.Code === 0) {
-      success('时间同步成功: ' + (data.server || 'NTP'))
+      success(t('settings.timeSynced') + ': ' + (data.server || 'NTP'))
       await fetchSystemTime()
     } else {
-      error(data.Error || '时间同步失败')
+      error(data.Error || t('settings.syncFailed'))
     }
   } catch (err) {
-    error('时间同步失败: ' + err.message)
+    error(t('settings.syncFailed') + ': ' + err.message)
   } finally {
     syncingTime.value = false
   }
 }
 
 async function handleReboot() {
-  if (!await confirm({ title: '设备重启', message: '确定要重启设备吗？此操作不可撤销。', danger: true })) return
+  if (!await confirm({ title: t('settings.reboot'), message: t('settings.confirmReboot'), danger: true })) return
   rebooting.value = true
   try {
     await deviceControl('reboot')
-    success('重启命令已发送，设备将在几秒后重启')
+    success(t('settings.rebootSent'))
   } catch (err) {
-    error('重启失败: ' + err.message)
+    error(t('settings.rebootFailed') + ': ' + err.message)
   } finally {
     rebooting.value = false
   }
 }
 
 async function handleShutdown() {
-  if (!await confirm({ title: '设备关机', message: '确定要关闭设备吗？此操作不可撤销。', danger: true })) return
+  if (!await confirm({ title: t('settings.shutdown'), message: t('settings.confirmShutdown'), danger: true })) return
   shuttingDown.value = true
   try {
     await deviceControl('poweroff')
-    success('关机命令已发送，设备将在30秒内关闭')
+    success(t('settings.shutdownSent'))
   } catch (err) {
-    error('关机失败: ' + err.message)
+    error(t('settings.shutdownFailed') + ': ' + err.message)
   } finally {
     shuttingDown.value = false
   }
@@ -106,20 +108,20 @@ function toggleAllDays() {
 async function saveRebootConfig() {
   if (rebootEnabled.value) {
     if (!rebootTime.value) {
-      error('请选择重启时间')
+      error(t('settings.selectTime'))
       return
     }
     if (selectedDays.value.length === 0) {
-      error('请选择重启日期')
+      error(t('settings.selectDays'))
       return
     }
     savingReboot.value = true
     try {
       const [hour, minute] = rebootTime.value.split(':')
       await setReboot(selectedDays.value, hour, minute)
-      success('定时重启设置成功')
+      success(t('settings.rebootConfigSaved'))
     } catch (err) {
-      error('设置失败: ' + err.message)
+      error(t('settings.saveFailed') + ': ' + err.message)
     } finally {
       savingReboot.value = false
     }
@@ -127,9 +129,9 @@ async function saveRebootConfig() {
     savingReboot.value = true
     try {
       await clearReboot()
-      success('已清除定时重启')
+      success(t('settings.rebootCleared'))
     } catch (err) {
-      error('清除失败: ' + err.message)
+      error(t('settings.clearFailed') + ': ' + err.message)
     } finally {
       savingReboot.value = false
     }
@@ -158,7 +160,7 @@ onUnmounted(() => {
     <div class="rounded-2xl bg-white/95 dark:bg-white/5 backdrop-blur border border-slate-200/60 dark:border-white/10 p-6 shadow-lg shadow-slate-200/40 dark:shadow-black/20 hover:shadow-xl hover:shadow-slate-300/50 dark:hover:shadow-black/30 transition-all duration-300">
       <h3 class="text-slate-900 dark:text-white font-semibold mb-6 flex items-center">
         <i class="fas fa-power-off text-red-500 dark:text-red-400 mr-2"></i>
-        设备控制
+        {{ t('settings.deviceControl') }}
       </h3>
       
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -174,8 +176,8 @@ onUnmounted(() => {
               <i :class="rebooting ? 'fas fa-spinner animate-spin' : 'fas fa-sync-alt'" class="text-white text-2xl"></i>
             </div>
             <div class="text-left">
-              <p class="text-slate-900 dark:text-white font-bold text-xl">{{ rebooting ? '重启中...' : '设备重启' }}</p>
-              <p class="text-slate-500 dark:text-white/50 text-sm mt-1">重新启动设备系统</p>
+              <p class="text-slate-900 dark:text-white font-bold text-xl">{{ rebooting ? t('settings.rebooting') : t('settings.reboot') }}</p>
+              <p class="text-slate-500 dark:text-white/50 text-sm mt-1">{{ t('settings.rebootDesc') }}</p>
             </div>
           </div>
         </button>
@@ -192,8 +194,8 @@ onUnmounted(() => {
               <i :class="shuttingDown ? 'fas fa-spinner animate-spin' : 'fas fa-power-off'" class="text-white text-2xl"></i>
             </div>
             <div class="text-left">
-              <p class="text-slate-900 dark:text-white font-bold text-xl">{{ shuttingDown ? '关机中...' : '设备关机' }}</p>
-              <p class="text-slate-500 dark:text-white/50 text-sm mt-1">安全关闭设备电源</p>
+              <p class="text-slate-900 dark:text-white font-bold text-xl">{{ shuttingDown ? t('settings.shuttingDown') : t('settings.shutdown') }}</p>
+              <p class="text-slate-500 dark:text-white/50 text-sm mt-1">{{ t('settings.shutdownDesc') }}</p>
             </div>
           </div>
         </button>
@@ -202,7 +204,7 @@ onUnmounted(() => {
       <div class="mt-6 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
         <p class="text-yellow-600 dark:text-yellow-400 text-sm flex items-center">
           <i class="fas fa-exclamation-triangle mr-2"></i>
-          操作将立即执行，请确保重要数据已保存
+          {{ t('settings.operationWarning') }}
         </p>
       </div>
     </div>
@@ -211,7 +213,7 @@ onUnmounted(() => {
     <div class="rounded-2xl bg-white/95 dark:bg-white/5 backdrop-blur border border-slate-200/60 dark:border-white/10 p-6 shadow-lg shadow-slate-200/40 dark:shadow-black/20 hover:shadow-xl hover:shadow-slate-300/50 dark:hover:shadow-black/30 transition-all duration-300">
       <h3 class="text-slate-900 dark:text-white font-semibold mb-6 flex items-center">
         <i class="fas fa-clock text-amber-500 dark:text-amber-400 mr-2"></i>
-        定时重启
+        {{ t('settings.scheduledReboot') }}
       </h3>
 
       <!-- 系统时间 -->
@@ -221,8 +223,8 @@ onUnmounted(() => {
             <i class="fas fa-calendar-alt text-amber-500 dark:text-amber-400"></i>
           </div>
           <div>
-            <p class="text-slate-500 dark:text-white/50 text-xs">系统时间</p>
-            <p class="text-slate-900 dark:text-white font-medium">{{ currentTime || '加载中...' }}</p>
+            <p class="text-slate-500 dark:text-white/50 text-xs">{{ t('settings.systemTime') }}</p>
+            <p class="text-slate-900 dark:text-white font-medium">{{ currentTime || t('common.loading') }}</p>
           </div>
         </div>
         <button 
@@ -231,7 +233,7 @@ onUnmounted(() => {
           class="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-sm font-medium rounded-lg hover:shadow-lg hover:shadow-blue-500/30 transition-all disabled:opacity-50 flex items-center"
         >
           <i :class="syncingTime ? 'fas fa-spinner fa-spin' : 'fas fa-sync-alt'" class="mr-2"></i>
-          {{ syncingTime ? '同步中...' : 'NTP同步' }}
+          {{ syncingTime ? t('settings.syncing') : t('settings.ntpSync') }}
         </button>
       </div>
 
@@ -242,8 +244,8 @@ onUnmounted(() => {
             <i class="fas fa-toggle-on text-green-600 dark:text-green-400"></i>
           </div>
           <div>
-            <p class="text-slate-900 dark:text-white font-medium">启用定时重启</p>
-            <p class="text-slate-500 dark:text-white/50 text-sm">按计划自动重启设备</p>
+            <p class="text-slate-900 dark:text-white font-medium">{{ t('settings.enableScheduledReboot') }}</p>
+            <p class="text-slate-500 dark:text-white/50 text-sm">{{ t('settings.enableScheduledRebootDesc') }}</p>
           </div>
         </div>
         <label class="relative cursor-pointer">
@@ -256,7 +258,7 @@ onUnmounted(() => {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- 重启时间 -->
         <div>
-          <label class="block text-slate-600 dark:text-white/60 text-sm mb-2">重启时间</label>
+          <label class="block text-slate-600 dark:text-white/60 text-sm mb-2">{{ t('settings.rebootTime') }}</label>
           <input 
             type="time" 
             v-model="rebootTime" 
@@ -267,7 +269,7 @@ onUnmounted(() => {
 
         <!-- 重启日期 -->
         <div>
-          <label class="block text-slate-600 dark:text-white/60 text-sm mb-2">重启日期</label>
+          <label class="block text-slate-600 dark:text-white/60 text-sm mb-2">{{ t('settings.rebootDays') }}</label>
           <div class="flex flex-wrap gap-2">
             <button 
               @click="toggleAllDays"
@@ -275,7 +277,7 @@ onUnmounted(() => {
               class="px-3 py-2 rounded-lg text-sm transition-all disabled:opacity-50"
               :class="selectedDays.length === 7 ? 'bg-amber-500 text-white' : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white/60 hover:bg-slate-200 dark:hover:bg-white/20'"
             >
-              全选
+              {{ t('settings.selectAll') }}
             </button>
             <button
               v-for="day in weekDays"
@@ -298,7 +300,7 @@ onUnmounted(() => {
         class="w-full mt-6 py-3 bg-gradient-to-r from-amber-500 to-orange-400 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-amber-500/30 transition-all disabled:opacity-50"
       >
         <i :class="savingReboot ? 'fas fa-spinner animate-spin' : 'fas fa-save'" class="mr-2"></i>
-        {{ savingReboot ? '保存中...' : '保存设置' }}
+        {{ savingReboot ? t('settings.saving') : t('settings.saveSettings') }}
       </button>
     </div>
   </div>

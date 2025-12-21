@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getChargeConfig, setChargeConfig, chargeOn, chargeOff } from '../composables/useApi'
 import { useToast } from '../composables/useToast'
 
+const { t } = useI18n()
 const { success, error: showError } = useToast()
 
 const batteryStatus = ref({ level: 0, charging: false, health: '-', temperature: 0, voltage: 0, current: 0 })
@@ -11,11 +13,11 @@ const saving = ref(false)
 const loading = ref(true)
 const manualControlling = ref(false)
 
-const presets = [
-  { name: '长寿模式', start: 20, stop: 80, desc: '延长电池寿命', icon: 'fa-heart', gradient: 'from-green-500 to-emerald-400' },
-  { name: '平衡模式', start: 15, stop: 90, desc: '日常使用推荐', icon: 'fa-balance-scale', gradient: 'from-blue-500 to-cyan-400' },
-  { name: '满电模式', start: 10, stop: 100, desc: '最大续航', icon: 'fa-bolt', gradient: 'from-amber-500 to-orange-400' }
-]
+const presets = computed(() => [
+  { name: t('battery.longevityMode'), start: 20, stop: 80, desc: t('battery.longevityDesc'), icon: 'fa-heart', gradient: 'from-green-500 to-emerald-400' },
+  { name: t('battery.balancedMode'), start: 15, stop: 90, desc: t('battery.balancedDesc'), icon: 'fa-balance-scale', gradient: 'from-blue-500 to-cyan-400' },
+  { name: t('battery.fullChargeMode'), start: 10, stop: 100, desc: t('battery.fullChargeDesc'), icon: 'fa-bolt', gradient: 'from-amber-500 to-orange-400' }
+])
 
 const batteryGradient = computed(() => {
   const level = batteryStatus.value.level
@@ -27,26 +29,31 @@ const batteryGradient = computed(() => {
 const healthStatus = computed(() => {
   const h = batteryStatus.value.health
   if (typeof h === 'string') {
-    const map = { 'Good': { text: '良好', color: 'text-green-400', icon: 'fa-heart' }, 'Overheat': { text: '过热', color: 'text-red-400', icon: 'fa-fire' },
-      'Dead': { text: '损坏', color: 'text-red-400', icon: 'fa-skull' }, 'Over voltage': { text: '过压', color: 'text-amber-400', icon: 'fa-bolt' },
-      'Cold': { text: '过冷', color: 'text-blue-400', icon: 'fa-snowflake' }, 'Unknown': { text: '未知', color: 'text-white/50', icon: 'fa-question' } }
+    const map = { 
+      'Good': { text: t('battery.healthGood'), color: 'text-green-400', icon: 'fa-heart' }, 
+      'Overheat': { text: t('battery.healthOverheat'), color: 'text-red-400', icon: 'fa-fire' },
+      'Dead': { text: t('battery.healthDead'), color: 'text-red-400', icon: 'fa-skull' }, 
+      'Over voltage': { text: t('battery.healthOverVoltage'), color: 'text-amber-400', icon: 'fa-bolt' },
+      'Cold': { text: t('battery.healthCold'), color: 'text-blue-400', icon: 'fa-snowflake' }, 
+      'Unknown': { text: t('battery.healthUnknown'), color: 'text-white/50', icon: 'fa-question' } 
+    }
     return map[h] || { text: h, color: 'text-green-400', icon: 'fa-heart' }
   }
-  if (h >= 90) return { text: '优秀', color: 'text-green-400', icon: 'fa-heart' }
-  if (h >= 80) return { text: '良好', color: 'text-blue-400', icon: 'fa-thumbs-up' }
-  if (h >= 60) return { text: '一般', color: 'text-amber-400', icon: 'fa-exclamation' }
-  return { text: '较差', color: 'text-red-400', icon: 'fa-triangle-exclamation' }
+  if (h >= 90) return { text: t('battery.healthExcellent'), color: 'text-green-400', icon: 'fa-heart' }
+  if (h >= 80) return { text: t('battery.healthGood'), color: 'text-blue-400', icon: 'fa-thumbs-up' }
+  if (h >= 60) return { text: t('battery.healthFair'), color: 'text-amber-400', icon: 'fa-exclamation' }
+  return { text: t('battery.healthPoor'), color: 'text-red-400', icon: 'fa-triangle-exclamation' }
 })
 
 function applyPreset(preset) { chargeConfig.value.startLevel = preset.start; chargeConfig.value.stopLevel = preset.stop }
 
 async function saveConfig() {
-  if (chargeConfig.value.enabled && chargeConfig.value.startLevel >= chargeConfig.value.stopLevel) { showError('开始充电电量必须小于停止充电电量'); return }
+  if (chargeConfig.value.enabled && chargeConfig.value.startLevel >= chargeConfig.value.stopLevel) { showError(t('battery.startMustLessThanStop')); return }
   saving.value = true
   try {
     const res = await setChargeConfig(chargeConfig.value.enabled, chargeConfig.value.startLevel, chargeConfig.value.stopLevel)
-    if (res.Code === 0) success('充电控制设置已保存'); else showError('保存失败: ' + res.Error)
-  } catch (err) { showError('保存失败: ' + err.message) }
+    if (res.Code === 0) success(t('battery.settingsSaved')); else showError(t('battery.saveFailed') + ': ' + res.Error)
+  } catch (err) { showError(t('battery.saveFailed') + ': ' + err.message) }
   finally { saving.value = false }
 }
 
@@ -54,8 +61,8 @@ async function toggleCharging() {
   manualControlling.value = true
   try {
     const res = batteryStatus.value.charging ? await chargeOff() : await chargeOn()
-    if (res.Code === 0) await fetchData(); else showError('操作失败: ' + res.Error)
-  } catch (err) { showError('操作失败: ' + err.message) }
+    if (res.Code === 0) await fetchData(); else showError(t('battery.operationFailed') + ': ' + res.Error)
+  } catch (err) { showError(t('battery.operationFailed') + ': ' + err.message) }
   finally { manualControlling.value = false }
 }
 
@@ -144,8 +151,8 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
                   <i :class="manualControlling ? 'fas fa-spinner animate-spin' : (batteryStatus.charging ? 'fas fa-stop' : 'fas fa-play')"></i>
                 </button>
               </div>
-              <p class="text-slate-500 dark:text-white/50 text-xs">充电状态</p>
-              <p class="text-slate-900 dark:text-white font-bold text-lg">{{ batteryStatus.charging ? '充电中' : '未充电' }}</p>
+              <p class="text-slate-500 dark:text-white/50 text-xs">{{ t('battery.chargingStatus') }}</p>
+              <p class="text-slate-900 dark:text-white font-bold text-lg">{{ batteryStatus.charging ? t('battery.charging') : t('battery.notCharging') }}</p>
             </div>
           </div>
           
@@ -156,7 +163,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
               <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-green-500/30 mb-2">
                 <i :class="['fas', healthStatus.icon, 'text-white']"></i>
               </div>
-              <p class="text-slate-500 dark:text-white/50 text-xs">电池健康</p>
+              <p class="text-slate-500 dark:text-white/50 text-xs">{{ t('battery.health') }}</p>
               <p class="font-bold text-lg" :class="healthStatus.color">{{ healthStatus.text }}</p>
             </div>
           </div>
@@ -168,7 +175,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
               <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-400 flex items-center justify-center shadow-lg shadow-cyan-500/30 mb-2">
                 <i class="fas fa-temperature-half text-white"></i>
               </div>
-              <p class="text-slate-500 dark:text-white/50 text-xs">电池温度</p>
+              <p class="text-slate-500 dark:text-white/50 text-xs">{{ t('battery.temperature') }}</p>
               <p class="text-slate-900 dark:text-white font-bold text-lg">{{ batteryStatus.temperature }}°C</p>
             </div>
           </div>
@@ -180,7 +187,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
               <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-400 flex items-center justify-center shadow-lg shadow-purple-500/30 mb-2">
                 <i class="fas fa-bolt text-white"></i>
               </div>
-              <p class="text-slate-500 dark:text-white/50 text-xs">电压 / 电流</p>
+              <p class="text-slate-500 dark:text-white/50 text-xs">{{ t('battery.voltageCurrent') }}</p>
               <p class="text-slate-900 dark:text-white font-bold">{{ batteryStatus.voltage }}V / {{ batteryStatus.current }}A</p>
             </div>
           </div>
@@ -220,8 +227,8 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
               <i class="fas fa-sliders text-white text-2xl"></i>
             </div>
             <div>
-              <h3 class="text-slate-900 dark:text-white font-bold text-xl">充电控制</h3>
-              <p class="text-slate-500 dark:text-white/50 text-sm">智能管理电池充电策略</p>
+              <h3 class="text-slate-900 dark:text-white font-bold text-xl">{{ t('battery.chargeControl') }}</h3>
+              <p class="text-slate-500 dark:text-white/50 text-sm">{{ t('battery.subtitle') }}</p>
             </div>
           </div>
           <label class="relative cursor-pointer">
@@ -265,7 +272,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
                   <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center">
                     <i class="fas fa-play text-white"></i>
                   </div>
-                  <span class="text-slate-600 dark:text-white/70">低于此电量开始充电</span>
+                  <span class="text-slate-600 dark:text-white/70">{{ t('battery.startChargeBelow') }}</span>
                 </div>
                 <span class="text-green-600 dark:text-green-400 font-bold text-2xl">{{ chargeConfig.startLevel }}%</span>
               </div>
@@ -280,7 +287,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
                   <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-400 flex items-center justify-center">
                     <i class="fas fa-stop text-white"></i>
                   </div>
-                  <span class="text-slate-600 dark:text-white/70">高于此电量停止充电</span>
+                  <span class="text-slate-600 dark:text-white/70">{{ t('battery.stopChargeAbove') }}</span>
                 </div>
                 <span class="text-red-600 dark:text-red-400 font-bold text-2xl">{{ chargeConfig.stopLevel }}%</span>
               </div>
@@ -298,11 +305,9 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
                 <i class="fas fa-lightbulb text-white text-xl"></i>
               </div>
               <div>
-                <p class="text-emerald-600 dark:text-emerald-400 font-bold mb-1">充电策略说明</p>
+                <p class="text-emerald-600 dark:text-emerald-400 font-bold mb-1">{{ t('battery.strategyExplain') }}</p>
                 <p class="text-slate-600 dark:text-white/60 text-sm leading-relaxed">
-                  当电量低于 <span class="text-green-600 dark:text-green-400 font-bold">{{ chargeConfig.startLevel }}%</span> 时自动开始充电，
-                  充至 <span class="text-red-600 dark:text-red-400 font-bold">{{ chargeConfig.stopLevel }}%</span> 时自动停止。
-                  此策略可有效延长电池使用寿命，建议日常使用保持在 20%-80% 区间。
+                  {{ t('battery.strategyDesc', { start: chargeConfig.startLevel, stop: chargeConfig.stopLevel }) }}
                 </p>
               </div>
             </div>
@@ -316,7 +321,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
           <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
           <span class="relative">
             <i :class="saving ? 'fas fa-spinner animate-spin' : 'fas fa-save'" class="mr-2"></i>
-            {{ saving ? '保存中...' : '保存设置' }}
+            {{ saving ? t('battery.saving') : t('battery.saveSettings') }}
           </span>
         </button>
       </div>

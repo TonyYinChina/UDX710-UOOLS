@@ -1,5 +1,6 @@
 <script setup>
 import { ref, provide, onMounted, onUnmounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import SystemMonitor from './components/SystemMonitor.vue'
 import NetworkManager from './components/NetworkManager.vue'
 import AdvancedNetwork from './components/AdvancedNetwork.vue'
@@ -15,6 +16,16 @@ import ApnConfig from './components/ApnConfig.vue'
 import PluginStore from './components/PluginStore.vue'
 import GlobalToast from './components/GlobalToast.vue'
 import GlobalConfirm from './components/GlobalConfirm.vue'
+
+// i18n
+const { t, locale } = useI18n()
+
+// 切换语言
+function toggleLocale() {
+  const newLocale = locale.value === 'zh-CN' ? 'en-US' : 'zh-CN'
+  locale.value = newLocale
+  localStorage.setItem('locale', newLocale)
+}
 
 // 当前激活的菜单
 const activeMenu = ref('monitor')
@@ -100,21 +111,21 @@ const lastUpdate = ref('')
 provide('systemInfo', systemInfo)
 provide('loading', loading)
 
-// 菜单配置
+// 菜单配置 - 使用i18n key
 const menuItems = [
-  { id: 'monitor', label: '系统监控', icon: 'fa-tachometer-alt', color: 'from-blue-500 to-cyan-400' },
-  { id: 'network', label: '网络管理', icon: 'fa-network-wired', color: 'from-purple-500 to-pink-400' },
-  { id: 'apn', label: 'APN配置', icon: 'fa-globe', color: 'from-teal-500 to-cyan-400' },
-  { id: 'advanced', label: '高级网络', icon: 'fa-tower-cell', color: 'from-cyan-500 to-blue-500' },
-  { id: 'sms', label: '短信管理', icon: 'fa-envelope', color: 'from-emerald-500 to-teal-400' },
-  { id: 'traffic', label: '流量统计', icon: 'fa-chart-area', color: 'from-green-500 to-emerald-400' },
-  { id: 'battery', label: '充电控制', icon: 'fa-battery-half', color: 'from-yellow-500 to-amber-400' },
-  { id: 'update', label: '系统更新', icon: 'fa-cloud-download-alt', color: 'from-violet-500 to-purple-400' },
-  { id: 'at', label: 'AT调试', icon: 'fa-terminal', color: 'from-cyan-500 to-teal-400' },
-  { id: 'terminal', label: 'Web终端', icon: 'fa-desktop', color: 'from-slate-500 to-gray-400' },
-  { id: 'usb', label: 'USB模式', icon: ['fab', 'usb'], color: 'from-purple-500 to-pink-400' },
-  { id: 'plugins', label: '插件商城', icon: 'fa-puzzle-piece', color: 'from-violet-500 to-purple-400' },
-  { id: 'settings', label: '系统设置', icon: 'fa-sliders-h', color: 'from-orange-500 to-amber-400' }
+  { id: 'monitor', labelKey: 'menu.monitor', icon: 'fa-tachometer-alt', color: 'from-blue-500 to-cyan-400' },
+  { id: 'network', labelKey: 'menu.network', icon: 'fa-network-wired', color: 'from-purple-500 to-pink-400' },
+  { id: 'apn', labelKey: 'menu.apn', icon: 'fa-globe', color: 'from-teal-500 to-cyan-400' },
+  { id: 'advanced', labelKey: 'menu.advanced', icon: 'fa-tower-cell', color: 'from-cyan-500 to-blue-500' },
+  { id: 'sms', labelKey: 'menu.sms', icon: 'fa-envelope', color: 'from-emerald-500 to-teal-400' },
+  { id: 'traffic', labelKey: 'menu.traffic', icon: 'fa-chart-area', color: 'from-green-500 to-emerald-400' },
+  { id: 'battery', labelKey: 'menu.battery', icon: 'fa-battery-half', color: 'from-yellow-500 to-amber-400' },
+  { id: 'update', labelKey: 'menu.update', icon: 'fa-cloud-download-alt', color: 'from-violet-500 to-purple-400' },
+  { id: 'at', labelKey: 'menu.at', icon: 'fa-terminal', color: 'from-cyan-500 to-teal-400' },
+  { id: 'terminal', labelKey: 'menu.terminal', icon: 'fa-desktop', color: 'from-slate-500 to-gray-400' },
+  { id: 'usb', labelKey: 'menu.usb', icon: ['fab', 'usb'], color: 'from-purple-500 to-pink-400' },
+  { id: 'plugins', labelKey: 'menu.plugins', icon: 'fa-puzzle-piece', color: 'from-violet-500 to-purple-400' },
+  { id: 'settings', labelKey: 'menu.settings', icon: 'fa-sliders-h', color: 'from-orange-500 to-amber-400' }
 ]
 
 // 获取系统信息
@@ -177,8 +188,8 @@ onUnmounted(() => {
               <font-awesome-icon icon="wifi" class="text-white text-lg" />
             </div>
             <div v-show="!sidebarCollapsed || isMobile" class="overflow-hidden">
-              <h1 class="text-slate-900 dark:text-white font-bold text-lg whitespace-nowrap">5G-MIFI</h1>
-              <p class="text-slate-500 dark:text-white/50 text-xs">管理中心</p>
+              <h1 class="text-slate-900 dark:text-white font-bold text-lg whitespace-nowrap">{{ t('header.title') }}</h1>
+              <p class="text-slate-500 dark:text-white/50 text-xs">{{ t('header.subtitle') }}</p>
             </div>
           </div>
         </div>
@@ -204,7 +215,7 @@ onUnmounted(() => {
                 class="font-medium transition-colors text-sm md:text-base"
                 :class="activeMenu === item.id ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-white/60 group-hover:text-slate-900 dark:group-hover:text-white/80'"
               >
-                {{ item.label }}
+                {{ t(item.labelKey) }}
               </span>
             </div>
           </button>
@@ -213,7 +224,7 @@ onUnmounted(() => {
         <!-- GitHub链接 -->
         <div class="px-2 md:px-4 pb-2">
           <a 
-            href="https://github.com/LeoChen-CoreMind/UDX710-UOOLS" 
+            href="https://github.com/LeoChen-CoreMind/UDX710-TOOLS" 
             target="_blank"
             class="w-full group relative overflow-hidden rounded-xl transition-all duration-300 hover:bg-slate-100/80 dark:hover:bg-white/10 flex items-center p-2 md:p-3"
             :class="(sidebarCollapsed && !isMobile) ? 'justify-center' : 'space-x-3'"
@@ -225,7 +236,7 @@ onUnmounted(() => {
               v-show="!sidebarCollapsed || isMobile"
               class="font-medium transition-colors text-sm md:text-base text-slate-600 dark:text-white/60 group-hover:text-slate-900 dark:group-hover:text-white/80"
             >
-              开源项目
+              {{ t('header.openSource') }}
             </span>
           </a>
         </div>
@@ -263,9 +274,9 @@ onUnmounted(() => {
               </button>
               <div class="min-w-0">
                 <h2 class="text-lg md:text-2xl font-bold text-slate-900 dark:text-white truncate">
-                  {{ menuItems.find(m => m.id === activeMenu)?.label }}
+                  {{ t(menuItems.find(m => m.id === activeMenu)?.labelKey) }}
                 </h2>
-                <p class="text-slate-500 dark:text-white/50 text-xs md:text-sm mt-0.5 md:mt-1 hidden sm:block">实时监控设备状态</p>
+                <p class="text-slate-500 dark:text-white/50 text-xs md:text-sm mt-0.5 md:mt-1 hidden sm:block">{{ t('header.realtimeMonitor') }}</p>
               </div>
             </div>
             <!-- 右侧：状态信息 -->
@@ -273,13 +284,21 @@ onUnmounted(() => {
               <!-- 状态指示器 -->
               <div class="flex items-center space-x-1.5 md:space-x-2 px-2 md:px-4 py-1.5 md:py-2 bg-slate-200 dark:bg-white/5 rounded-lg md:rounded-xl">
                 <span class="w-2 h-2 rounded-full animate-pulse" :class="loading ? 'bg-yellow-400' : 'bg-green-400'"></span>
-                <span class="text-slate-600 dark:text-white/60 text-xs md:text-sm hidden sm:inline">{{ loading ? '同步中...' : '已连接' }}</span>
+                <span class="text-slate-600 dark:text-white/60 text-xs md:text-sm hidden sm:inline">{{ loading ? t('common.syncing') : t('common.connected') }}</span>
               </div>
+              <!-- 语言切换按钮 -->
+              <button 
+                @click="toggleLocale"
+                class="w-9 h-9 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 transition-colors flex items-center justify-center"
+                :title="locale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+              >
+                <font-awesome-icon icon="globe" class="text-blue-500 dark:text-blue-400 text-sm md:text-base" />
+              </button>
               <!-- 主题切换按钮 -->
               <button 
                 @click="toggleTheme"
                 class="w-9 h-9 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 transition-colors flex items-center justify-center"
-                :title="isDark ? '切换到白天模式' : '切换到深夜模式'"
+                :title="isDark ? t('settings.lightMode') : t('settings.darkMode')"
               >
                 <font-awesome-icon :icon="isDark ? 'sun' : 'moon'" class="text-amber-500 dark:text-amber-400 text-sm md:text-base" />
               </button>
@@ -293,7 +312,7 @@ onUnmounted(() => {
               </button>
               <!-- 时间显示 (仅桌面端) -->
               <div class="text-right hidden md:block">
-                <div class="text-slate-500 dark:text-white/40 text-xs">最后更新</div>
+                <div class="text-slate-500 dark:text-white/40 text-xs">{{ t('common.lastUpdate') }}</div>
                 <div class="text-slate-700 dark:text-white/80 text-sm font-medium">{{ lastUpdate || '--:--:--' }}</div>
               </div>
             </div>

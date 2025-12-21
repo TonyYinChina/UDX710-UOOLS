@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getCells, lockCell as apiLockCell, unlockCell as apiUnlockCell } from '../composables/useApi'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
+const { t } = useI18n()
 const { success, error: showError } = useToast()
 const { confirm } = useConfirm()
 
@@ -23,47 +25,47 @@ async function fetchCells() {
       cells.value = res.Data
       errorMsg.value = ''
     } else {
-      errorMsg.value = res.Error || '获取小区信息失败'
+      errorMsg.value = res.Error || t('cell.getCellsFailed')
     }
   } catch (err) {
-    errorMsg.value = '网络请求失败'
+    errorMsg.value = t('cell.networkError')
   } finally {
     loading.value = false
   }
 }
 
 async function lockCell(cell) {
-  if (!await confirm({ title: '锁定小区', message: `确认锁定到小区 PCI=${cell.pci} (频段${cell.band})？` })) return
+  if (!await confirm({ title: t('cell.lockCell'), message: t('cell.confirmLockCell', { pci: cell.pci, band: cell.band }) })) return
   lockingCell.value = true
   try {
     const tech = cell.band.startsWith('N') ? 'NR' : 'LTE'
     const res = await apiLockCell(tech, cell.arfcn, cell.pci)
     if (res.Code === 0) {
-      success(`已锁定到小区 PCI=${cell.pci}`)
+      success(t('cell.lockedToCell', { pci: cell.pci }))
       await fetchCells()
     } else {
-      showError('锁定失败: ' + res.Error)
+      showError(t('cell.lockFailed') + ': ' + res.Error)
     }
   } catch (err) {
-    showError('锁定失败: ' + err.message)
+    showError(t('cell.lockFailed') + ': ' + err.message)
   } finally {
     lockingCell.value = false
   }
 }
 
 async function unlockCell() {
-  if (!await confirm({ title: '解锁小区', message: '确认解锁小区锁定？' })) return
+  if (!await confirm({ title: t('cell.unlockCell'), message: t('cell.confirmUnlockCell') })) return
   lockingCell.value = true
   try {
     const res = await apiUnlockCell()
     if (res.Code === 0) {
-      success('已解锁小区锁定')
+      success(t('cell.unlocked'))
       await fetchCells()
     } else {
-      showError('解锁失败: ' + res.Error)
+      showError(t('cell.unlockFailed') + ': ' + res.Error)
     }
   } catch (err) {
-    showError('解锁失败: ' + err.message)
+    showError(t('cell.unlockFailed') + ': ' + err.message)
   } finally {
     lockingCell.value = false
   }
@@ -96,10 +98,10 @@ function getBandColor(band) {
 }
 
 function getSignalLevel(rsrp) {
-  if (rsrp >= -80) return '优秀'
-  if (rsrp >= -90) return '良好'
-  if (rsrp >= -100) return '一般'
-  return '较差'
+  if (rsrp >= -80) return t('cell.excellent')
+  if (rsrp >= -90) return t('cell.good')
+  if (rsrp >= -100) return t('cell.fair')
+  return t('cell.poor')
 }
 
 onMounted(() => {
@@ -115,20 +117,20 @@ onUnmounted(() => {
 <template>
   <div class="space-y-6">
     <div class="text-center">
-      <h1 class="text-3xl font-bold text-white mb-2">小区管理</h1>
-      <p class="text-white/60">查看主小区和邻小区信息，支持小区锁定功能</p>
+      <h1 class="text-3xl font-bold text-white mb-2">{{ $t('cell.title') }}</h1>
+      <p class="text-white/60">{{ $t('cell.subtitle') }}</p>
     </div>
 
     <div class="flex justify-center space-x-4">
       <button @click="fetchCells" :disabled="loading"
         class="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-medium rounded-xl hover:shadow-lg transition-all disabled:opacity-50">
         <i :class="loading ? 'fas fa-spinner animate-spin' : 'fas fa-sync-alt'" class="mr-2"></i>
-        {{ loading ? '扫描中...' : '刷新扫描' }}
+        {{ loading ? $t('cell.scanning') : $t('cell.refreshScan') }}
       </button>
       <button @click="unlockCell" :disabled="lockingCell"
         class="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white font-medium rounded-xl hover:shadow-lg transition-all disabled:opacity-50">
         <i :class="lockingCell ? 'fas fa-spinner animate-spin' : 'fas fa-unlock'" class="mr-2"></i>
-        解锁小区
+        {{ $t('cell.unlockCell') }}
       </button>
     </div>
 
@@ -136,23 +138,23 @@ onUnmounted(() => {
       <i class="fas fa-spinner animate-spin text-3xl text-white/50"></i>
     </div>
 
-    <div v-else-if="error" class="text-center py-12">
+    <div v-else-if="errorMsg" class="text-center py-12">
       <i class="fas fa-exclamation-triangle text-red-400 text-3xl mb-4"></i>
-      <p class="text-red-400">{{ error }}</p>
-      <button @click="fetchCells" class="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg">重试</button>
+      <p class="text-red-400">{{ errorMsg }}</p>
+      <button @click="fetchCells" class="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg">{{ $t('cell.retry') }}</button>
     </div>
 
     <template v-else>
       <div v-if="servingCell" class="rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 p-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-xl font-semibold text-white flex items-center">
-            <i class="fas fa-star text-yellow-400 mr-3"></i>主小区 (服务小区)
+            <i class="fas fa-star text-yellow-400 mr-3"></i>{{ $t('cell.servingCell') }}
           </h2>
           <span class="text-green-400 font-semibold">{{ getSignalLevel(servingCell.rsrp) }}</span>
         </div>
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div class="p-3 bg-black/20 rounded-xl text-center">
-            <p class="text-white/50 text-xs mb-1">频段</p>
+            <p class="text-white/50 text-xs mb-1">{{ $t('cell.band') }}</p>
             <p class="text-white font-bold text-lg">{{ servingCell.band }}</p>
           </div>
           <div class="p-3 bg-black/20 rounded-xl text-center">
@@ -186,7 +188,7 @@ onUnmounted(() => {
 
       <div v-if="neighborCells.length > 0" class="rounded-2xl bg-white/5 backdrop-blur border border-white/10 p-6">
         <h2 class="text-xl font-semibold text-white flex items-center mb-4">
-          <i class="fas fa-broadcast-tower text-cyan-400 mr-3"></i>邻小区 ({{ neighborCells.length }}个)
+          <i class="fas fa-broadcast-tower text-cyan-400 mr-3"></i>{{ $t('cell.neighborCells', { count: neighborCells.length }) }}
         </h2>
         <div class="space-y-3">
           <div v-for="(cell, index) in neighborCells" :key="index" class="p-4 bg-black/20 rounded-xl hover:bg-black/30 transition-colors">
@@ -211,7 +213,7 @@ onUnmounted(() => {
                 </div>
                 <button @click="lockCell(cell)" :disabled="lockingCell"
                   class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-medium rounded-lg hover:shadow-lg transition-all disabled:opacity-50">
-                  <i :class="lockingCell ? 'fas fa-spinner animate-spin' : 'fas fa-lock'" class="mr-1"></i>锁定
+                  <i :class="lockingCell ? 'fas fa-spinner animate-spin' : 'fas fa-lock'" class="mr-1"></i>{{ $t('cell.lock') }}
                 </button>
               </div>
             </div>
@@ -221,7 +223,7 @@ onUnmounted(() => {
 
       <div v-if="!servingCell && neighborCells.length === 0" class="text-center py-12">
         <i class="fas fa-satellite-dish text-white/30 text-4xl mb-4"></i>
-        <p class="text-white/50">未检测到小区信息</p>
+        <p class="text-white/50">{{ $t('cell.noCells') }}</p>
       </div>
     </template>
   </div>

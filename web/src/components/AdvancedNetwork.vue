@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getBands, lockBands as apiLockBands, unlockBands as apiUnlockBands, getCells, lockCell as apiLockCell, unlockCell as apiUnlockCell } from '../composables/useApi'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
+const { t } = useI18n()
 const { success, error: showError } = useToast()
 const { confirm } = useConfirm()
 
@@ -34,48 +36,48 @@ const selectedBandsCount = computed(() => {
 async function fetchBands() {
   loading.value = true
   try { bands.value = await getBands() }
-  catch (err) { showError('获取频段失败: ' + err.message) }
+  catch (err) { showError(t('advanced.getBandsFailed') + ': ' + err.message) }
   finally { loading.value = false }
 }
 
 async function handleLockBands() {
   const selectedBands = []
   Object.values(bands.value).forEach(group => group.forEach(band => { if (band.locked) selectedBands.push(band.name) }))
-  if (selectedBands.length === 0) { showError('请至少选择一个频段'); return }
+  if (selectedBands.length === 0) { showError(t('advanced.selectAtLeastOne')); return }
   lockingBands.value = true
-  try { await apiLockBands(selectedBands); success(`已锁定 ${selectedBands.length} 个频段`); await fetchBands() }
-  catch (err) { showError('锁定失败: ' + err.message) }
+  try { await apiLockBands(selectedBands); success(t('advanced.lockedBands', { count: selectedBands.length })); await fetchBands() }
+  catch (err) { showError(t('advanced.lockFailed') + ': ' + err.message) }
   finally { lockingBands.value = false }
 }
 
 async function handleUnlockAllBands() {
-  if (!await confirm({ title: '解锁频段', message: '确认解锁所有频段？' })) return
+  if (!await confirm({ title: t('advanced.unlockBand'), message: t('advanced.confirmUnlockAll') })) return
   lockingBands.value = true
-  try { await apiUnlockBands(); Object.values(bands.value).forEach(g => g.forEach(b => b.locked = false)); success('已解锁所有频段'); await fetchBands() }
-  catch (err) { showError('解锁失败: ' + err.message) }
+  try { await apiUnlockBands(); Object.values(bands.value).forEach(g => g.forEach(b => b.locked = false)); success(t('advanced.unlockedAll')); await fetchBands() }
+  catch (err) { showError(t('advanced.unlockFailed') + ': ' + err.message) }
   finally { lockingBands.value = false }
 }
 
 async function fetchCells() {
   refreshing.value = true
   try { const res = await getCells(); cells.value = res.Code === 0 && res.Data ? res.Data : [] }
-  catch (err) { showError('获取小区失败: ' + err.message) }
+  catch (err) { showError(t('advanced.getCellsFailed') + ': ' + err.message) }
   finally { refreshing.value = false }
 }
 
 async function handleLockCell(cell) {
-  if (!await confirm({ title: '锁定小区', message: `确认锁定小区 PCI=${cell.pci}？` })) return
+  if (!await confirm({ title: t('advanced.lockCell'), message: t('advanced.confirmLockCell', { pci: cell.pci }) })) return
   lockingCell.value = true
-  try { await apiLockCell(cell.rat, cell.arfcn, cell.pci); success('小区锁定成功'); await fetchCells() }
-  catch (err) { showError('锁定失败: ' + err.message) }
+  try { await apiLockCell(cell.rat, cell.arfcn, cell.pci); success(t('advanced.cellLockSuccess')); await fetchCells() }
+  catch (err) { showError(t('advanced.lockFailed') + ': ' + err.message) }
   finally { lockingCell.value = false }
 }
 
 async function handleUnlockCell() {
-  if (!await confirm({ title: '解锁小区', message: '确认解锁小区？' })) return
+  if (!await confirm({ title: t('advanced.unlockCell'), message: t('advanced.confirmUnlockCell') })) return
   lockingCell.value = true
-  try { await apiUnlockCell(); success('小区解锁成功'); await fetchCells() }
-  catch (err) { showError('解锁失败: ' + err.message) }
+  try { await apiUnlockCell(); success(t('advanced.cellUnlockSuccess')); await fetchCells() }
+  catch (err) { showError(t('advanced.unlockFailed') + ': ' + err.message) }
   finally { lockingCell.value = false }
 }
 
@@ -83,19 +85,19 @@ async function handleUnlockCell() {
 async function handleCustomLockCell() {
   const { rat, arfcn, pci } = customLockForm.value
   if (!arfcn.trim() || !pci.trim()) {
-    showError('请输入频点和PCI')
+    showError(t('advanced.enterArfcnPci'))
     return
   }
-  if (!await confirm({ title: '自定义锁定', message: `确认锁定 ${rat} 频点=${arfcn} PCI=${pci}？` })) return
+  if (!await confirm({ title: t('advanced.customLock'), message: t('advanced.confirmCustomLock', { rat, arfcn, pci }) })) return
   customLocking.value = true
   try {
     await apiLockCell(rat, arfcn.trim(), pci.trim())
-    success('小区锁定成功')
+    success(t('advanced.cellLockSuccess'))
     customLockForm.value = { rat: 'LTE', arfcn: '', pci: '' }
     showCustomLock.value = false
     await fetchCells()
   } catch (err) {
-    showError('锁定失败: ' + err.message)
+    showError(t('advanced.lockFailed') + ': ' + err.message)
   } finally {
     customLocking.value = false
   }
@@ -122,19 +124,19 @@ onMounted(() => { fetchBands(); fetchCells() })
             <i class="fas fa-broadcast-tower text-white"></i>
           </div>
           <div>
-            <h3 class="text-slate-900 dark:text-white font-semibold text-sm">频段锁定</h3>
-            <p class="text-slate-500 dark:text-white/50 text-xs">已选 {{ selectedBandsCount }} 个频段</p>
+            <h3 class="text-slate-900 dark:text-white font-semibold text-sm">{{ t('advanced.bandLock') }}</h3>
+            <p class="text-slate-500 dark:text-white/50 text-xs">{{ t('advanced.selectedBands', { count: selectedBandsCount }) }}</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
           <button @click="handleUnlockAllBands" :disabled="lockingBands"
             class="px-3 py-1.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white/70 text-xs rounded-lg hover:bg-slate-200 dark:hover:bg-white/20 transition-all disabled:opacity-50">
-            <i class="fas fa-unlock mr-1"></i>解锁
+            <i class="fas fa-unlock mr-1"></i>{{ t('advanced.unlock') }}
           </button>
           <button @click="handleLockBands" :disabled="lockingBands || selectedBandsCount === 0"
             class="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs rounded-lg hover:shadow-lg hover:shadow-purple-500/30 transition-all disabled:opacity-50">
             <i :class="lockingBands ? 'fas fa-spinner animate-spin' : 'fas fa-lock'" class="mr-1"></i>
-            {{ lockingBands ? '锁定中' : '锁定' }}
+            {{ lockingBands ? t('advanced.locking') : t('advanced.lock') }}
           </button>
         </div>
       </div>
@@ -210,19 +212,19 @@ onMounted(() => { fetchBands(); fetchCells() })
             <i class="fas fa-tower-cell text-white"></i>
           </div>
           <div>
-            <h3 class="text-slate-900 dark:text-white font-semibold text-sm">小区锁定</h3>
-            <p class="text-slate-500 dark:text-white/50 text-xs">发现 {{ cells.length }} 个小区</p>
+            <h3 class="text-slate-900 dark:text-white font-semibold text-sm">{{ t('advanced.cellLock') }}</h3>
+            <p class="text-slate-500 dark:text-white/50 text-xs">{{ t('advanced.foundCells', { count: cells.length }) }}</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
           <button @click="fetchCells" :disabled="refreshing"
             class="px-3 py-1.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white/70 text-xs rounded-lg hover:bg-slate-200 dark:hover:bg-white/20 transition-all disabled:opacity-50">
             <i :class="refreshing ? 'fas fa-spinner animate-spin' : 'fas fa-sync-alt'" class="mr-1"></i>
-            {{ refreshing ? '扫描中' : '扫描' }}
+            {{ refreshing ? t('advanced.scanning') : t('advanced.scan') }}
           </button>
           <button @click="handleUnlockCell" :disabled="lockingCell"
             class="px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs rounded-lg hover:shadow-lg hover:shadow-cyan-500/30 transition-all disabled:opacity-50">
-            <i class="fas fa-unlock mr-1"></i>解锁
+            <i class="fas fa-unlock mr-1"></i>{{ t('advanced.unlock') }}
           </button>
         </div>
       </div>
@@ -231,25 +233,25 @@ onMounted(() => { fetchBands(); fetchCells() })
       <div v-if="servingCell" class="mb-4">
         <div class="flex items-center space-x-2 mb-2">
           <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-          <span class="text-slate-700 dark:text-white/80 text-xs font-medium">主小区</span>
-          <span class="px-2 py-0.5 bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 text-[10px] rounded-full">已连接</span>
+          <span class="text-slate-700 dark:text-white/80 text-xs font-medium">{{ t('advanced.servingCell') }}</span>
+          <span class="px-2 py-0.5 bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 text-[10px] rounded-full">{{ t('advanced.connected') }}</span>
         </div>
         <div class="p-3 bg-green-50 dark:bg-green-500/10 rounded-xl border border-green-200 dark:border-green-500/30">
           <div class="grid grid-cols-4 sm:grid-cols-7 gap-3">
             <div class="text-center">
-              <p class="text-slate-500 dark:text-white/50 text-[10px]">制式</p>
+              <p class="text-slate-500 dark:text-white/50 text-[10px]">{{ t('advanced.rat') }}</p>
               <p class="text-slate-900 dark:text-white font-semibold text-sm">{{ servingCell.rat }}</p>
             </div>
             <div class="text-center">
-              <p class="text-slate-500 dark:text-white/50 text-[10px]">频段</p>
+              <p class="text-slate-500 dark:text-white/50 text-[10px]">{{ t('advanced.band') }}</p>
               <p class="text-purple-600 dark:text-purple-400 font-semibold text-sm">{{ servingCell.band }}</p>
             </div>
             <div class="text-center hidden sm:block">
-              <p class="text-slate-500 dark:text-white/50 text-[10px]">频点</p>
+              <p class="text-slate-500 dark:text-white/50 text-[10px]">{{ t('advanced.arfcn') }}</p>
               <p class="text-slate-900 dark:text-white font-mono text-xs">{{ servingCell.arfcn }}</p>
             </div>
             <div class="text-center">
-              <p class="text-slate-500 dark:text-white/50 text-[10px]">PCI</p>
+              <p class="text-slate-500 dark:text-white/50 text-[10px]">{{ t('advanced.pci') }}</p>
               <p class="text-slate-900 dark:text-white font-semibold text-sm">{{ servingCell.pci }}</p>
             </div>
             <div class="text-center">
@@ -273,28 +275,28 @@ onMounted(() => { fetchBands(); fetchCells() })
       <div v-if="neighborCells.length > 0">
         <div class="flex items-center space-x-2 mb-2">
           <div class="w-2 h-2 rounded-full bg-cyan-500"></div>
-          <span class="text-slate-700 dark:text-white/80 text-xs font-medium">邻小区</span>
+          <span class="text-slate-700 dark:text-white/80 text-xs font-medium">{{ t('advanced.neighborCell') }}</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-white/10"></div>
-          <span class="text-slate-400 dark:text-white/40 text-xs">{{ neighborCells.length }}个</span>
+          <span class="text-slate-400 dark:text-white/40 text-xs">{{ neighborCells.length }}</span>
         </div>
         <div class="space-y-2">
           <div v-for="(cell, index) in neighborCells" :key="index"
             class="group flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 hover:border-cyan-300 dark:hover:border-cyan-500/50 transition-all">
             <div class="grid grid-cols-4 sm:grid-cols-6 gap-3 flex-1">
               <div class="text-center">
-                <p class="text-slate-500 dark:text-white/50 text-[10px]">制式</p>
+                <p class="text-slate-500 dark:text-white/50 text-[10px]">{{ t('advanced.rat') }}</p>
                 <p class="text-slate-900 dark:text-white text-xs">{{ cell.rat }}</p>
               </div>
               <div class="text-center">
-                <p class="text-slate-500 dark:text-white/50 text-[10px]">频段</p>
+                <p class="text-slate-500 dark:text-white/50 text-[10px]">{{ t('advanced.band') }}</p>
                 <p class="text-purple-600 dark:text-purple-400 text-xs">{{ cell.band }}</p>
               </div>
               <div class="text-center hidden sm:block">
-                <p class="text-slate-500 dark:text-white/50 text-[10px]">频点</p>
+                <p class="text-slate-500 dark:text-white/50 text-[10px]">{{ t('advanced.arfcn') }}</p>
                 <p class="text-slate-900 dark:text-white font-mono text-xs">{{ cell.arfcn }}</p>
               </div>
               <div class="text-center">
-                <p class="text-slate-500 dark:text-white/50 text-[10px]">PCI</p>
+                <p class="text-slate-500 dark:text-white/50 text-[10px]">{{ t('advanced.pci') }}</p>
                 <p class="text-slate-900 dark:text-white text-xs">{{ cell.pci }}</p>
               </div>
               <div class="text-center">
@@ -322,7 +324,7 @@ onMounted(() => { fetchBands(); fetchCells() })
             <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md shadow-amber-500/30">
               <i class="fas fa-sliders text-white text-[10px]"></i>
             </div>
-            <span class="text-slate-700 dark:text-white/80 text-sm font-medium">自定义锁定</span>
+            <span class="text-slate-700 dark:text-white/80 text-sm font-medium">{{ t('advanced.customLock') }}</span>
           </div>
           <i class="fas fa-chevron-down text-slate-400 dark:text-white/40 text-xs transition-transform duration-300"
             :class="{ 'rotate-180': showCustomLock }"></i>
@@ -356,7 +358,7 @@ onMounted(() => { fetchBands(); fetchCells() })
                   </button>
                 </div>
                 <div class="flex gap-2">
-                  <input v-model="customLockForm.arfcn" type="text" placeholder="频点 ARFCN"
+                  <input v-model="customLockForm.arfcn" type="text" :placeholder="t('advanced.arfcnPlaceholder')"
                     class="flex-1 px-3 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 rounded-lg text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-white/40 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all">
                   <input v-model="customLockForm.pci" type="text" placeholder="PCI"
                     class="w-24 px-3 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 rounded-lg text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-white/40 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all">
@@ -364,7 +366,7 @@ onMounted(() => { fetchBands(); fetchCells() })
                 <button @click="handleCustomLockCell" :disabled="customLocking"
                   class="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold rounded-lg hover:shadow-lg hover:shadow-amber-500/30 active:scale-[0.98] transition-all duration-200 disabled:opacity-50">
                   <i :class="customLocking ? 'fas fa-spinner fa-spin' : 'fas fa-lock'" class="mr-1.5"></i>
-                  {{ customLocking ? '锁定中' : '锁定小区' }}
+                  {{ customLocking ? t('advanced.locking') : t('advanced.lockCellBtn') }}
                 </button>
               </div>
               <!-- 电脑端：横向布局 -->
@@ -385,14 +387,14 @@ onMounted(() => { fetchBands(); fetchCells() })
                     5G
                   </button>
                 </div>
-                <input v-model="customLockForm.arfcn" type="text" placeholder="频点 ARFCN"
+                <input v-model="customLockForm.arfcn" type="text" :placeholder="t('advanced.arfcnPlaceholder')"
                   class="flex-1 px-3 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 rounded-lg text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-white/40 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all">
                 <input v-model="customLockForm.pci" type="text" placeholder="PCI"
                   class="w-28 px-3 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 rounded-lg text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-white/40 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all">
                 <button @click="handleCustomLockCell" :disabled="customLocking"
                   class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold rounded-lg hover:shadow-lg hover:shadow-amber-500/30 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 whitespace-nowrap">
                   <i :class="customLocking ? 'fas fa-spinner fa-spin' : 'fas fa-lock'" class="mr-1.5"></i>
-                  {{ customLocking ? '锁定中' : '锁定' }}
+                  {{ customLocking ? t('advanced.locking') : t('advanced.lock') }}
                 </button>
               </div>
             </div>
@@ -405,8 +407,8 @@ onMounted(() => { fetchBands(); fetchCells() })
         <div class="w-16 h-16 mx-auto mb-3 bg-slate-100 dark:bg-white/10 rounded-full flex items-center justify-center">
           <i class="fas fa-tower-cell text-slate-400 dark:text-white/40 text-2xl"></i>
         </div>
-        <p class="text-slate-600 dark:text-white/60 text-sm mb-1">未发现小区信息</p>
-        <p class="text-slate-400 dark:text-white/40 text-xs">点击"扫描"获取周边基站</p>
+        <p class="text-slate-600 dark:text-white/60 text-sm mb-1">{{ t('advanced.noCellsFound') }}</p>
+        <p class="text-slate-400 dark:text-white/40 text-xs">{{ t('advanced.clickScan') }}</p>
       </div>
 
       <!-- 扫描动画 -->
@@ -417,7 +419,7 @@ onMounted(() => { fetchBands(); fetchCells() })
           </div>
           <div class="absolute inset-0 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
         </div>
-        <p class="text-cyan-600 dark:text-cyan-400 text-sm">正在扫描小区...</p>
+        <p class="text-cyan-600 dark:text-cyan-400 text-sm">{{ t('advanced.scanningCells') }}</p>
       </div>
     </div>
   </div>

@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getTrafficTotal, getTrafficConfig, setTrafficLimit, clearTrafficStats } from '../composables/useApi'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
+const { t } = useI18n()
 const { success, error } = useToast()
 const { confirm } = useConfirm()
 
@@ -76,15 +78,15 @@ async function fetchConfig() {
 // 保存配置
 async function saveConfig() {
   if (limitEnabled.value && (!limitValue.value || parseFloat(limitValue.value) <= 0)) {
-    error('请输入有效的流量限制值')
+    error(t('traffic.enterValidLimit'))
     return
   }
   saving.value = true
   try {
     await setTrafficLimit(limitEnabled.value, parseFloat(limitValue.value) || 0)
-    success('保存成功')
+    success(t('traffic.saveSuccess'))
   } catch (err) {
-    error('保存失败: ' + err.message)
+    error(t('traffic.saveFailed') + ': ' + err.message)
   } finally {
     saving.value = false
   }
@@ -92,16 +94,16 @@ async function saveConfig() {
 
 // 清除统计
 async function handleClear() {
-  if (!await confirm({ title: '清除统计', message: '确认清除所有流量统计数据？此操作不可恢复！', danger: true })) return
+  if (!await confirm({ title: t('traffic.clearStats'), message: t('traffic.confirmClear'), danger: true })) return
   clearing.value = true
   try {
     await clearTrafficStats()
     uploadBytes.value = 0
     downloadBytes.value = 0
     totalBytes.value = 0
-    success('数据已清除')
+    success(t('traffic.dataCleared'))
   } catch (err) {
-    error('清除失败: ' + err.message)
+    error(t('traffic.clearFailed') + ': ' + err.message)
   } finally {
     clearing.value = false
   }
@@ -131,13 +133,13 @@ onUnmounted(() => {
               <i class="fas fa-arrow-up text-white text-lg"></i>
             </div>
             <div>
-              <p class="text-slate-500 dark:text-white/50 text-sm">上传流量</p>
+              <p class="text-slate-500 dark:text-white/50 text-sm">{{ t('traffic.uploadTraffic') }}</p>
               <p class="text-slate-900 dark:text-white font-bold text-2xl">{{ formatBytes(uploadBytes) }}</p>
             </div>
           </div>
           <div class="flex items-center text-green-600 dark:text-green-400 text-sm">
             <i class="fas fa-arrow-trend-up mr-1"></i>
-            <span>实时统计</span>
+            <span>{{ t('traffic.realtime') }}</span>
           </div>
         </div>
       </div>
@@ -151,13 +153,13 @@ onUnmounted(() => {
               <i class="fas fa-arrow-down text-white text-lg"></i>
             </div>
             <div>
-              <p class="text-slate-500 dark:text-white/50 text-sm">下载流量</p>
+              <p class="text-slate-500 dark:text-white/50 text-sm">{{ t('traffic.downloadTraffic') }}</p>
               <p class="text-slate-900 dark:text-white font-bold text-2xl">{{ formatBytes(downloadBytes) }}</p>
             </div>
           </div>
           <div class="flex items-center text-green-600 dark:text-green-400 text-sm">
             <i class="fas fa-arrow-trend-up mr-1"></i>
-            <span>实时统计</span>
+            <span>{{ t('traffic.realtime') }}</span>
           </div>
         </div>
       </div>
@@ -171,13 +173,13 @@ onUnmounted(() => {
               <i class="fas fa-chart-pie text-white text-lg"></i>
             </div>
             <div>
-              <p class="text-slate-500 dark:text-white/50 text-sm">总流量</p>
+              <p class="text-slate-500 dark:text-white/50 text-sm">{{ t('traffic.totalTraffic') }}</p>
               <p class="text-slate-900 dark:text-white font-bold text-2xl">{{ formatBytes(totalBytes) }}</p>
             </div>
           </div>
           <div class="flex items-center text-green-600 dark:text-green-400 text-sm">
             <i class="fas fa-clock mr-1"></i>
-            <span>本月累计</span>
+            <span>{{ t('traffic.monthlyTotal') }}</span>
           </div>
         </div>
       </div>
@@ -188,11 +190,11 @@ onUnmounted(() => {
       <div class="flex items-center justify-between mb-6">
         <h3 class="text-slate-900 dark:text-white font-semibold flex items-center">
           <i class="fas fa-gauge-high text-green-400 mr-2"></i>
-          流量使用进度
+          {{ t('traffic.usageProgress') }}
         </h3>
         <div class="flex items-center space-x-2">
-          <span class="text-slate-500 dark:text-white/50 text-sm">限制:</span>
-          <span class="text-slate-900 dark:text-white font-medium">{{ limitEnabled ? limitValue + ' GB' : '未设置' }}</span>
+          <span class="text-slate-500 dark:text-white/50 text-sm">{{ t('traffic.limit') }}:</span>
+          <span class="text-slate-900 dark:text-white font-medium">{{ limitEnabled ? limitValue + ' GB' : t('traffic.notSet') }}</span>
         </div>
       </div>
       
@@ -213,15 +215,15 @@ onUnmounted(() => {
       <!-- 流量详情 -->
       <div class="grid grid-cols-3 gap-4 text-center">
         <div class="p-3 bg-slate-100 dark:bg-white/5 rounded-xl">
-          <div class="text-blue-600 dark:text-blue-400 text-xs mb-1">上传占比</div>
+          <div class="text-blue-600 dark:text-blue-400 text-xs mb-1">{{ t('traffic.uploadPercent') }}</div>
           <div class="text-slate-900 dark:text-white font-semibold">{{ totalBytes ? ((uploadBytes / totalBytes) * 100).toFixed(1) : 0 }}%</div>
         </div>
         <div class="p-3 bg-slate-100 dark:bg-white/5 rounded-xl">
-          <div class="text-purple-600 dark:text-purple-400 text-xs mb-1">下载占比</div>
+          <div class="text-purple-600 dark:text-purple-400 text-xs mb-1">{{ t('traffic.downloadPercent') }}</div>
           <div class="text-slate-900 dark:text-white font-semibold">{{ totalBytes ? ((downloadBytes / totalBytes) * 100).toFixed(1) : 0 }}%</div>
         </div>
         <div class="p-3 bg-slate-100 dark:bg-white/5 rounded-xl">
-          <div class="text-orange-600 dark:text-orange-400 text-xs mb-1">剩余流量</div>
+          <div class="text-orange-600 dark:text-orange-400 text-xs mb-1">{{ t('traffic.remaining') }}</div>
           <div class="text-slate-900 dark:text-white font-semibold">{{ limitEnabled ? formatBytes(Math.max(0, parseFloat(limitValue) * 1073741824 - totalBytes)) : '∞' }}</div>
         </div>
       </div>
@@ -233,7 +235,7 @@ onUnmounted(() => {
       <div class="rounded-2xl bg-white/95 dark:bg-white/5 backdrop-blur border border-slate-200/60 dark:border-white/10 p-6 shadow-lg shadow-slate-200/40 dark:shadow-black/20 hover:shadow-xl hover:shadow-slate-300/50 dark:hover:shadow-black/30 transition-all duration-300">
         <h3 class="text-slate-900 dark:text-white font-semibold mb-6 flex items-center">
           <i class="fas fa-shield-halved text-yellow-400 mr-2"></i>
-          流量限制设置
+          {{ t('traffic.limitSettings') }}
         </h3>
         
         <!-- 启用开关 -->
@@ -243,8 +245,8 @@ onUnmounted(() => {
               <i class="fas fa-toggle-on text-yellow-400"></i>
             </div>
             <div>
-              <p class="text-slate-900 dark:text-white font-medium">启用流量限制</p>
-              <p class="text-slate-500 dark:text-white/50 text-sm">达到限制后自动断网</p>
+              <p class="text-slate-900 dark:text-white font-medium">{{ t('traffic.enableLimit') }}</p>
+              <p class="text-slate-500 dark:text-white/50 text-sm">{{ t('traffic.enableLimitDesc') }}</p>
             </div>
           </div>
           <label class="relative cursor-pointer">
@@ -256,13 +258,13 @@ onUnmounted(() => {
 
         <!-- 限制值输入 -->
         <div class="mb-6">
-          <label class="block text-slate-600 dark:text-white/60 text-sm mb-2">流量限制值</label>
+          <label class="block text-slate-600 dark:text-white/60 text-sm mb-2">{{ t('traffic.limitValue') }}</label>
           <div class="flex items-center space-x-3">
             <input 
               type="number" 
               v-model="limitValue" 
               :disabled="!limitEnabled"
-              placeholder="输入限制值"
+              :placeholder="t('traffic.enterLimit')"
               class="flex-1 px-4 py-3 bg-slate-100 dark:bg-white/10 border border-slate-300 dark:border-white/20 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all disabled:opacity-50"
             >
             <span class="text-slate-600 dark:text-white/60 font-medium">GB</span>
@@ -277,7 +279,7 @@ onUnmounted(() => {
             class="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-400 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-green-500/30 transition-all disabled:opacity-50"
           >
             <i :class="saving ? 'fas fa-spinner animate-spin' : 'fas fa-save'" class="mr-2"></i>
-            {{ saving ? '保存中...' : '保存设置' }}
+            {{ saving ? t('traffic.saving') : t('traffic.saveSettings') }}
           </button>
           <button 
             @click="handleClear" 
@@ -285,7 +287,7 @@ onUnmounted(() => {
             class="flex-1 py-3 bg-gradient-to-r from-red-500 to-orange-400 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-red-500/30 transition-all disabled:opacity-50"
           >
             <i :class="clearing ? 'fas fa-spinner animate-spin' : 'fas fa-trash'" class="mr-2"></i>
-            {{ clearing ? '清除中...' : '清除统计' }}
+            {{ clearing ? t('traffic.clearing') : t('traffic.clearStats') }}
           </button>
         </div>
       </div>
@@ -294,32 +296,32 @@ onUnmounted(() => {
       <div class="rounded-2xl bg-white/95 dark:bg-white/5 backdrop-blur border border-slate-200/60 dark:border-white/10 p-6 shadow-lg shadow-slate-200/40 dark:shadow-black/20 hover:shadow-xl hover:shadow-slate-300/50 dark:hover:shadow-black/30 transition-all duration-300">
         <h3 class="text-slate-900 dark:text-white font-semibold mb-4 flex items-center">
           <i class="fas fa-lightbulb text-amber-400 mr-2"></i>
-          使用说明
+          {{ t('traffic.instructions') }}
         </h3>
         <div class="space-y-3">
           <div class="flex items-start space-x-3 p-3 bg-slate-100 dark:bg-white/5 rounded-xl">
             <div class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
               <span class="text-blue-400 text-xs font-bold">1</span>
             </div>
-            <p class="text-slate-600 dark:text-white/70 text-sm">流量限制功能可设置每月流量上限，达到后自动断网保护</p>
+            <p class="text-slate-600 dark:text-white/70 text-sm">{{ t('traffic.tip1') }}</p>
           </div>
           <div class="flex items-start space-x-3 p-3 bg-slate-100 dark:bg-white/5 rounded-xl">
             <div class="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
               <span class="text-purple-400 text-xs font-bold">2</span>
             </div>
-            <p class="text-slate-600 dark:text-white/70 text-sm">由于系统统计延迟，高速下载时可能有几MB~上百MB的误差</p>
+            <p class="text-slate-600 dark:text-white/70 text-sm">{{ t('traffic.tip2') }}</p>
           </div>
           <div class="flex items-start space-x-3 p-3 bg-slate-100 dark:bg-white/5 rounded-xl">
             <div class="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
               <span class="text-orange-400 text-xs font-bold">3</span>
             </div>
-            <p class="text-slate-600 dark:text-white/70 text-sm">建议预留10%~20%的余量，避免超额使用</p>
+            <p class="text-slate-600 dark:text-white/70 text-sm">{{ t('traffic.tip3') }}</p>
           </div>
           <div class="flex items-start space-x-3 p-3 bg-slate-100 dark:bg-white/5 rounded-xl">
             <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
               <span class="text-green-400 text-xs font-bold">4</span>
             </div>
-            <p class="text-slate-600 dark:text-white/70 text-sm">清除统计后，数据需要约5分钟才能重新显示</p>
+            <p class="text-slate-600 dark:text-white/70 text-sm">{{ t('traffic.tip4') }}</p>
           </div>
         </div>
       </div>
