@@ -99,7 +99,7 @@ async function handleChangePassword() {
   changingPassword.value = true
   try {
     const result = await authChangePassword(oldPassword.value, newPassword.value)
-    if (result.success) {
+    if (result.status === 'success') {
       success(t('auth.passwordChanged'))
       oldPassword.value = ''
       newPassword.value = ''
