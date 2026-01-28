@@ -15,7 +15,7 @@ extern "C" {
 /* ofono D-Bus 常量 */
 #define OFONO_SERVICE           "org.ofono"
 #define OFONO_RADIO_SETTINGS    "org.ofono.RadioSettings"
-#define OFONO_TIMEOUT_MS        80000  /* 优化：30s -> 8s */
+#define OFONO_TIMEOUT_MS        30000
 
 /**
  * 初始化 D-Bus 连接
@@ -259,33 +259,6 @@ void ofono_stop_data_monitor(void);
  * @return 运行中返回1，否则返回0
  */
 int ofono_is_data_monitor_running(void);
-
-/* ==================== 异步数据连接 API ==================== */
-
-/**
- * 异步操作回调函数类型
- * @param result 操作结果 (0=成功, 负数=失败)
- * @param message 结果描述消息
- * @param user_data 用户数据
- */
-typedef void (*OfonoAsyncCallback)(int result, const char *message, void *user_data);
-
-/**
- * 异步设置数据连接状态
- * 非阻塞方式设置数据连接开关，完成后通过回调通知结果
- * @param active 1=开启数据连接, 0=关闭数据连接
- * @param callback 完成回调函数 (可为NULL)
- * @param user_data 传递给回调的用户数据
- */
-void ofono_set_data_status_async(int active, OfonoAsyncCallback callback, void *user_data);
-
-/**
- * 异步恢复数据连接
- * 非阻塞方式检查网络状态和APN配置，必要时自动激活数据连接
- * @param callback 完成回调函数 (可为NULL)
- * @param user_data 传递给回调的用户数据
- */
-void ofono_restore_data_async(OfonoAsyncCallback callback, void *user_data);
 
 #ifdef __cplusplus
 }

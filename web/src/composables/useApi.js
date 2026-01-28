@@ -497,7 +497,30 @@ export async function authChangePassword(oldPassword, newPassword) {
 export async function authGetStatus() {
   const token = getAuthToken()
   const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
-  
+
   const response = await fetch('/api/auth/status', { headers })
   return response.json()
+}
+
+// ==================== 网络接口监控API ====================
+
+// 获取所有网络接口列表
+export async function getNetifList() {
+  return request('/api/netif/list')
+}
+
+// 获取指定接口实时流量统计
+export async function getNetifStats(ifname) {
+  return request('/api/netif/stats', {
+    method: 'POST',
+    body: JSON.stringify({ interface: ifname })
+  })
+}
+
+// 设置接口监听状态
+export async function setNetifMonitor(ifname, enabled) {
+  return request('/api/netif/monitor', {
+    method: 'POST',
+    body: JSON.stringify({ interface: ifname, enabled })
+  })
 }

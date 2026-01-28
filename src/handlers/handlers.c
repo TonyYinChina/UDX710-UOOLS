@@ -1415,13 +1415,13 @@ void handle_script_list(struct mg_connection *c, struct mg_http_message *hm) {
                         fclose(f);
                     }
 
-                    /* 使用mongoose MG_ESC进行JSON转义 - MG_ESC已包含引号 */
+                    /* 使用mongoose MG_ESC进行JSON转义 */
                     char escaped[65536];
                     mg_snprintf(escaped, sizeof(escaped), "%m", MG_ESC(content));
 
                     char item[70000];
                     snprintf(item, sizeof(item),
-                        "%s{\"name\":\"%s\",\"size\":%ld,\"mtime\":%ld,\"content\":%s}",
+                        "%s{\"name\":\"%s\",\"size\":%ld,\"mtime\":%ld,\"content\":\"%s\"}",
                         first ? "" : ",", entry->d_name, st.st_size, st.st_mtime, escaped);
                     strcat(json, item);
                     first = 0;

@@ -14,6 +14,7 @@ import WebTerminal from './components/WebTerminal.vue'
 import UsbMode from './components/UsbMode.vue'
 import ApnConfig from './components/ApnConfig.vue'
 import PluginStore from './components/PluginStore.vue'
+import NetworkInterface from './components/NetworkInterface.vue'
 import GlobalToast from './components/GlobalToast.vue'
 import GlobalConfirm from './components/GlobalConfirm.vue'
 import UpdateNotification from './components/UpdateNotification.vue'
@@ -235,6 +236,7 @@ provide('loading', loading)
 const menuItems = [
   { id: 'monitor', labelKey: 'menu.monitor', icon: 'fa-tachometer-alt', color: 'from-blue-500 to-cyan-400' },
   { id: 'network', labelKey: 'menu.network', icon: 'fa-network-wired', color: 'from-purple-500 to-pink-400' },
+  { id: 'netif', labelKey: 'menu.netif', icon: 'fa-ethernet', color: 'from-teal-500 to-cyan-400' },
   { id: 'apn', labelKey: 'menu.apn', icon: 'fa-globe', color: 'from-teal-500 to-cyan-400' },
   { id: 'advanced', labelKey: 'menu.advanced', icon: 'fa-tower-cell', color: 'from-cyan-500 to-blue-500' },
   { id: 'sms', labelKey: 'menu.sms', icon: 'fa-envelope', color: 'from-emerald-500 to-teal-400' },
@@ -609,6 +611,7 @@ onUnmounted(() => {
           <WebTerminal v-else-if="activeMenu === 'terminal'" key="terminal" />
           <UsbMode v-else-if="activeMenu === 'usb'" key="usb" />
           <ApnConfig v-else-if="activeMenu === 'apn'" key="apn" />
+          <NetworkInterface v-else-if="activeMenu === 'netif'" key="netif" />
           <PluginStore v-else-if="activeMenu === 'plugins'" key="plugins" />
           <SystemSettings v-else-if="activeMenu === 'settings'" key="settings" />
         </Transition>
