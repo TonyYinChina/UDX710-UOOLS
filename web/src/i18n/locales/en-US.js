@@ -56,6 +56,7 @@ export default {
   menu: {
     monitor: 'System',
     network: 'Network',
+    netif: 'Interfaces',
     apn: 'APN Config',
     advanced: 'Advanced',
     sms: 'SMS',
@@ -923,5 +924,27 @@ export default {
     good: 'Good',
     fair: 'Fair',
     poor: 'Poor'
+  },
+
+  // Network Interface Monitor
+  netif: {
+    title: 'Network Interface',
+    subtitle: 'View and monitor all network interfaces',
+    noMac: 'No MAC address',
+    ipv4: 'IPv4',
+    ipv6: 'IPv6',
+    mask: 'Netmask',
+    up: 'Up',
+    down: 'Down',
+    monitoring: 'Monitoring',
+    rx: 'Receive',
+    tx: 'Transmit',
+    packets: 'Packets',
+    monitorEnabled: '{name} monitoring enabled',
+    monitorDisabled: '{name} monitoring disabled',
+    toggleFailed: 'Failed to toggle monitoring',
+    noInterfaces: 'No network interfaces detected',
+    showDetails: 'Show details',
+    hideDetails: 'Hide details'
   }
 }

@@ -56,6 +56,7 @@ export default {
   menu: {
     monitor: '系统监控',
     network: '网络管理',
+    netif: '网络接口',
     apn: 'APN配置',
     advanced: '高级网络',
     sms: '短信管理',
@@ -922,5 +923,27 @@ export default {
     good: '良好',
     fair: '一般',
     poor: '较差'
+  },
+
+  // 网络接口监控
+  netif: {
+    title: '网络接口',
+    subtitle: '查看和监控所有网络接口',
+    noMac: '无MAC地址',
+    ipv4: 'IPv4',
+    ipv6: 'IPv6',
+    mask: '子网掩码',
+    up: '已启用',
+    down: '已禁用',
+    monitoring: '监听中',
+    rx: '接收',
+    tx: '发送',
+    packets: '数据包',
+    monitorEnabled: '{name} 监听已启用',
+    monitorDisabled: '{name} 监听已关闭',
+    toggleFailed: '切换监听状态失败',
+    noInterfaces: '未检测到网络接口',
+    showDetails: '显示详情',
+    hideDetails: '隐藏详情'
   }
 }
