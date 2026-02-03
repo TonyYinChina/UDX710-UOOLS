@@ -191,7 +191,15 @@ import {
 
   // RatholeManager.vue
   faExchangeAlt,
-  faList
+  faList,
+
+  // IPv6Proxy.vue
+  faGlobeAmericas,
+  faRandom,
+  faArrowsAltH,
+  faFlask,
+  faBookOpen,
+  faVideo
 } from '@fortawesome/free-solid-svg-icons'
 
 // 注册所有图标到库
@@ -334,7 +342,13 @@ library.add(
   faArrowsRotate,
   faMobile,
   faExchangeAlt,
-  faList
+  faList,
+  faGlobeAmericas,
+  faRandom,
+  faArrowsAltH,
+  faFlask,
+  faBookOpen,
+  faVideo
 )
 
 // 启用 DOM 监视器，自动将 <i class="fas fa-xxx"> 转换为 SVG

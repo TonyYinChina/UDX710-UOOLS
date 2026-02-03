@@ -25,6 +25,7 @@
 #include "netif.h"
 #include "system/rathole.h"
 #include "system/phone_case.h"
+#include "system/ipv6_proxy.h"
 
 /* 嵌入式文件系统声明 (packed_fs.c) */
 extern int serve_packed_file(struct mg_connection *c, struct mg_http_message *hm);
@@ -426,6 +427,46 @@ static void http_handler(struct mg_connection *c, int ev, void *ev_data) {
         else if (mg_match(hm->uri, mg_str("/api/rathole/autostart"), NULL)) {
             handle_rathole_autostart(c, hm);
         }
+        /* IPv6 Proxy 端口转发 API */
+        else if (mg_match(hm->uri, mg_str("/api/ipv6-proxy/config"), NULL)) {
+            if (hm->method.len == 3 && memcmp(hm->method.buf, "GET", 3) == 0) {
+                handle_ipv6_proxy_config_get(c, hm);
+            } else {
+                handle_ipv6_proxy_config_set(c, hm);
+            }
+        }
+        else if (mg_match(hm->uri, mg_str("/api/ipv6-proxy/rules"), NULL)) {
+            if (hm->method.len == 3 && memcmp(hm->method.buf, "GET", 3) == 0) {
+                handle_ipv6_proxy_rules_list(c, hm);
+            } else {
+                handle_ipv6_proxy_rules_add(c, hm);
+            }
+        }
+        else if (mg_match(hm->uri, mg_str("/api/ipv6-proxy/rules/*"), NULL)) {
+            if (hm->method.len == 3 && memcmp(hm->method.buf, "PUT", 3) == 0) {
+                handle_ipv6_proxy_rules_update(c, hm);
+            } else {
+                handle_ipv6_proxy_rules_delete(c, hm);
+            }
+        }
+        else if (mg_match(hm->uri, mg_str("/api/ipv6-proxy/start"), NULL)) {
+            handle_ipv6_proxy_start(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/ipv6-proxy/stop"), NULL)) {
+            handle_ipv6_proxy_stop(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/ipv6-proxy/restart"), NULL)) {
+            handle_ipv6_proxy_restart(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/ipv6-proxy/status"), NULL)) {
+            handle_ipv6_proxy_status(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/ipv6-proxy/send"), NULL)) {
+            handle_ipv6_proxy_send(c, hm);
+        }
+        else if (mg_match(hm->uri, mg_str("/api/ipv6-proxy/test"), NULL)) {
+            handle_ipv6_proxy_test(c, hm);
+        }
         /* 手机壳模式 API */
         else if (mg_match(hm->uri, mg_str("/api/phone-case"), NULL)) {
             handle_phone_case(c, hm);
@@ -475,11 +516,16 @@ int http_server_start(const char *port) {
     /* 初始化手机壳模式模块 */
     phone_case_init();
 
+    /* 初始化IPv6代理模块 */
+    if (ipv6_proxy_init("6677.db") != 0) {
+        printf("警告: IPv6代理模块初始化失败\n");
+    }
+
     /* 初始化 mongoose */
     mg_mgr_init(&g_mgr);
 
-    /* 构建监听地址 - 使用 [::] 同时支持 IPv4 和 IPv6 */
-    snprintf(listen_addr, sizeof(listen_addr), "http://[::]:%s", port);
+    /* 构建监听地址 - 使用 0.0.0.0 监听所有IPv4地址 */
+    snprintf(listen_addr, sizeof(listen_addr), "http://0.0.0.0:%s", port);
 
     /* 创建 HTTP 监听器 */
     if (mg_http_listen(&g_mgr, listen_addr, http_handler, NULL) == NULL) {

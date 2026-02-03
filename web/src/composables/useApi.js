@@ -357,13 +357,23 @@ export async function setApnConfig(config) {
 export function useApi() {
   return {
     async get(url) {
-      return request(url)
+      try {
+        const data = await request(url)
+        return { ok: true, data }
+      } catch (err) {
+        return { ok: false, data: { error: err.message } }
+      }
     },
     async post(url, data = {}) {
-      return request(url, {
-        method: 'POST',
-        body: JSON.stringify(data)
-      })
+      try {
+        const result = await request(url, {
+          method: 'POST',
+          body: JSON.stringify(data)
+        })
+        return { ok: true, data: result }
+      } catch (err) {
+        return { ok: false, data: { error: err.message } }
+      }
     }
   }
 }

@@ -2499,3 +2499,273 @@ void handle_rathole_server_config(struct mg_connection *c, struct mg_http_messag
     free(toml);
     free(escaped);
 }
+
+/* ==================== IPv6 Proxy 端口转发 API ==================== */
+#include "system/ipv6_proxy.h"
+
+/* GET /api/ipv6-proxy/config - 获取IPv6代理配置 */
+void handle_ipv6_proxy_config_get(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_GET(c, hm);
+    
+    IPv6ProxyConfig config;
+    
+    if (ipv6_proxy_get_config(&config) != 0) {
+        HTTP_ERROR(c, 500, "获取配置失败");
+        return;
+    }
+    
+    JsonBuilder *j = json_new();
+    json_obj_open(j);
+    json_add_str(j, "status", "ok");
+    json_add_str(j, "message", "");
+    json_key_obj_open(j, "data");
+    json_add_int(j, "enabled", config.enabled);
+    json_add_int(j, "auto_start", config.auto_start);
+    json_add_int(j, "send_enabled", config.send_enabled);
+    json_add_int(j, "send_interval", config.send_interval);
+    json_add_str(j, "webhook_url", config.webhook_url);
+    json_add_str(j, "webhook_body", config.webhook_body);
+    json_add_str(j, "webhook_headers", config.webhook_headers);
+    json_obj_close(j);
+    json_obj_close(j);
+    HTTP_OK_FREE(c, json_finish(j));
+}
+
+/* POST /api/ipv6-proxy/config - 设置IPv6代理配置 */
+void handle_ipv6_proxy_config_set(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_POST(c, hm);
+    
+    IPv6ProxyConfig config = {0};
+    
+    config.enabled = (int)mg_json_get_long(hm->body, "$.enabled", 0);
+    config.auto_start = (int)mg_json_get_long(hm->body, "$.auto_start", 0);
+    config.send_enabled = (int)mg_json_get_long(hm->body, "$.send_enabled", 0);
+    config.send_interval = (int)mg_json_get_long(hm->body, "$.send_interval", 60);
+    
+    char *url = mg_json_get_str(hm->body, "$.webhook_url");
+    char *body = mg_json_get_str(hm->body, "$.webhook_body");
+    char *headers = mg_json_get_str(hm->body, "$.webhook_headers");
+    
+    if (url) {
+        strncpy(config.webhook_url, url, sizeof(config.webhook_url) - 1);
+        free(url);
+    }
+    if (body) {
+        strncpy(config.webhook_body, body, sizeof(config.webhook_body) - 1);
+        free(body);
+    }
+    if (headers) {
+        strncpy(config.webhook_headers, headers, sizeof(config.webhook_headers) - 1);
+        free(headers);
+    }
+    
+    if (ipv6_proxy_set_config(&config) == 0) {
+        HTTP_OK(c, "{\"status\":\"ok\",\"message\":\"配置保存成功\"}");
+    } else {
+        HTTP_ERROR(c, 500, "配置保存失败");
+    }
+}
+
+/* GET /api/ipv6-proxy/rules - 获取规则列表 */
+void handle_ipv6_proxy_rules_list(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_GET(c, hm);
+    
+    IPv6ProxyRule rules[IPV6_PROXY_MAX_RULES];
+    int count = ipv6_proxy_rule_list(rules, IPV6_PROXY_MAX_RULES);
+    
+    if (count < 0) {
+        HTTP_ERROR(c, 500, "获取规则列表失败");
+        return;
+    }
+    
+    JsonBuilder *j = json_new();
+    json_obj_open(j);
+    json_add_str(j, "status", "ok");
+    json_add_str(j, "message", "");
+    json_arr_open(j, "data");
+    
+    for (int i = 0; i < count; i++) {
+        json_arr_obj_open(j);
+        json_add_int(j, "id", rules[i].id);
+        json_add_int(j, "local_port", rules[i].local_port);
+        json_add_int(j, "ipv6_port", rules[i].ipv6_port);
+        json_add_int(j, "enabled", rules[i].enabled);
+        json_add_long(j, "created_at", (long)rules[i].created_at);
+        json_obj_close(j);
+    }
+    
+    json_arr_close(j);
+    json_add_int(j, "count", count);
+    json_obj_close(j);
+    HTTP_OK_FREE(c, json_finish(j));
+}
+
+/* POST /api/ipv6-proxy/rules - 添加规则 */
+void handle_ipv6_proxy_rules_add(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_POST(c, hm);
+    
+    int local_port = (int)mg_json_get_long(hm->body, "$.local_port", 0);
+    int ipv6_port = (int)mg_json_get_long(hm->body, "$.ipv6_port", 0);
+    
+    if (local_port <= 0 || local_port > 65535) {
+        HTTP_ERROR(c, 400, "本地端口无效");
+        return;
+    }
+    
+    if (ipv6_port <= 0 || ipv6_port > 65535) {
+        HTTP_ERROR(c, 400, "IPv6端口无效");
+        return;
+    }
+    
+    int new_id = ipv6_proxy_rule_add(local_port, ipv6_port);
+    if (new_id > 0) {
+        JsonBuilder *j = json_new();
+        json_obj_open(j);
+        json_add_str(j, "status", "ok");
+        json_add_str(j, "message", "规则添加成功");
+        json_add_int(j, "id", new_id);
+        json_obj_close(j);
+        HTTP_OK_FREE(c, json_finish(j));
+    } else {
+        HTTP_ERROR(c, 500, "规则添加失败");
+    }
+}
+
+/* PUT /api/ipv6-proxy/rules/:id - 更新规则 */
+void handle_ipv6_proxy_rules_update(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_ANY(c, hm);
+    HTTP_HANDLE_OPTIONS(c, hm);
+    
+    if (!http_is_method(hm, "PUT")) {
+        http_method_error(c);
+        return;
+    }
+    
+    /* 从URL提取ID */
+    char id_str[16] = {0};
+    if (sscanf(hm->uri.buf, "/api/ipv6-proxy/rules/%15s", id_str) != 1) {
+        HTTP_ERROR(c, 400, "无效的规则ID");
+        return;
+    }
+    
+    int id = atoi(id_str);
+    int local_port = (int)mg_json_get_long(hm->body, "$.local_port", 0);
+    int ipv6_port = (int)mg_json_get_long(hm->body, "$.ipv6_port", 0);
+    int enabled = (int)mg_json_get_long(hm->body, "$.enabled", 1);
+    
+    if (local_port <= 0 || local_port > 65535 ||
+        ipv6_port <= 0 || ipv6_port > 65535) {
+        HTTP_ERROR(c, 400, "端口参数无效");
+        return;
+    }
+    
+    if (ipv6_proxy_rule_update(id, local_port, ipv6_port, enabled) == 0) {
+        HTTP_OK(c, "{\"status\":\"ok\",\"message\":\"规则更新成功，请重启服务生效\"}");
+    } else {
+        HTTP_ERROR(c, 500, "规则更新失败");
+    }
+}
+
+/* DELETE /api/ipv6-proxy/rules/:id - 删除规则 */
+void handle_ipv6_proxy_rules_delete(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_DELETE(c, hm);
+    
+    /* 从URL提取ID */
+    char id_str[16] = {0};
+    if (sscanf(hm->uri.buf, "/api/ipv6-proxy/rules/%15s", id_str) != 1) {
+        HTTP_ERROR(c, 400, "无效的规则ID");
+        return;
+    }
+    
+    int id = atoi(id_str);
+    
+    if (ipv6_proxy_rule_delete(id) == 0) {
+        HTTP_OK(c, "{\"status\":\"ok\",\"message\":\"规则删除成功，请重启服务生效\"}");
+    } else {
+        HTTP_ERROR(c, 500, "规则删除失败");
+    }
+}
+
+/* POST /api/ipv6-proxy/start - 启动服务 */
+void handle_ipv6_proxy_start(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_POST(c, hm);
+    
+    if (ipv6_proxy_start() == 0) {
+        HTTP_OK(c, "{\"status\":\"ok\",\"message\":\"服务启动成功\"}");
+    } else {
+        HTTP_ERROR(c, 500, "服务启动失败，请检查是否配置了转发规则");
+    }
+}
+
+/* POST /api/ipv6-proxy/stop - 停止服务 */
+void handle_ipv6_proxy_stop(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_POST(c, hm);
+    
+    if (ipv6_proxy_stop() == 0) {
+        HTTP_OK(c, "{\"status\":\"ok\",\"message\":\"服务已停止\"}");
+    } else {
+        HTTP_ERROR(c, 500, "服务停止失败");
+    }
+}
+
+/* POST /api/ipv6-proxy/restart - 重启服务 */
+void handle_ipv6_proxy_restart(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_POST(c, hm);
+    
+    if (ipv6_proxy_restart() == 0) {
+        HTTP_OK(c, "{\"status\":\"ok\",\"message\":\"服务重启成功\"}");
+    } else {
+        HTTP_ERROR(c, 500, "服务重启失败");
+    }
+}
+
+/* GET /api/ipv6-proxy/status - 获取服务状态 */
+void handle_ipv6_proxy_status(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_GET(c, hm);
+    
+    IPv6ProxyStatus status;
+    int running = ipv6_proxy_get_status(&status);
+    
+    JsonBuilder *j = json_new();
+    json_obj_open(j);
+    json_add_str(j, "status", "ok");
+    json_add_str(j, "message", "");
+    json_key_obj_open(j, "data");
+    json_add_int(j, "running", running);
+    json_add_int(j, "rule_count", status.rule_count);
+    json_add_int(j, "active_count", status.active_count);
+    json_add_str(j, "ipv6_addr", status.ipv6_addr);
+    
+    /* 生成访问链接 */
+    char link[128] = "";
+    if (strlen(status.ipv6_addr) > 0) {
+        snprintf(link, sizeof(link), "http://[%s]:6677", status.ipv6_addr);
+    }
+    json_add_str(j, "link", link);
+    
+    json_obj_close(j);
+    json_obj_close(j);
+    HTTP_OK_FREE(c, json_finish(j));
+}
+
+/* POST /api/ipv6-proxy/send - 立即发送IPv6 */
+void handle_ipv6_proxy_send(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_POST(c, hm);
+    
+    if (ipv6_proxy_send_now() == 0) {
+        HTTP_OK(c, "{\"status\":\"ok\",\"message\":\"发送成功\"}");
+    } else {
+        HTTP_ERROR(c, 500, "发送失败");
+    }
+}
+
+/* POST /api/ipv6-proxy/test - 测试发送 */
+void handle_ipv6_proxy_test(struct mg_connection *c, struct mg_http_message *hm) {
+    HTTP_CHECK_POST(c, hm);
+    
+    if (ipv6_proxy_test_send() == 0) {
+        HTTP_OK(c, "{\"status\":\"ok\",\"message\":\"测试发送完成\"}");
+    } else {
+        HTTP_ERROR(c, 500, "测试发送失败");
+    }
+}

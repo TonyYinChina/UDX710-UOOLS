@@ -104,6 +104,20 @@ void handle_rathole_logs(struct mg_connection *c, struct mg_http_message *hm);
 void handle_rathole_server_config(struct mg_connection *c, struct mg_http_message *hm);
 void handle_rathole_autostart(struct mg_connection *c, struct mg_http_message *hm);
 
+/* IPv6 Proxy 端口转发 API */
+void handle_ipv6_proxy_config_get(struct mg_connection *c, struct mg_http_message *hm);
+void handle_ipv6_proxy_config_set(struct mg_connection *c, struct mg_http_message *hm);
+void handle_ipv6_proxy_rules_list(struct mg_connection *c, struct mg_http_message *hm);
+void handle_ipv6_proxy_rules_add(struct mg_connection *c, struct mg_http_message *hm);
+void handle_ipv6_proxy_rules_update(struct mg_connection *c, struct mg_http_message *hm);
+void handle_ipv6_proxy_rules_delete(struct mg_connection *c, struct mg_http_message *hm);
+void handle_ipv6_proxy_start(struct mg_connection *c, struct mg_http_message *hm);
+void handle_ipv6_proxy_stop(struct mg_connection *c, struct mg_http_message *hm);
+void handle_ipv6_proxy_restart(struct mg_connection *c, struct mg_http_message *hm);
+void handle_ipv6_proxy_status(struct mg_connection *c, struct mg_http_message *hm);
+void handle_ipv6_proxy_send(struct mg_connection *c, struct mg_http_message *hm);
+void handle_ipv6_proxy_test(struct mg_connection *c, struct mg_http_message *hm);
+
 #ifdef __cplusplus
 }
 #endif
